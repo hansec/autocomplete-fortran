@@ -7,8 +7,11 @@ This package provides autocomplete suggestions for FORTRAN code (currently moder
 ![Autocomplete in user-defined types](http://staff.washington.edu/hansec/ac_fortran_ex1.gif)
 
 ## Requirements
- * [Python](https://www.python.org/)
+This package requires the following packages to be installed:
  * [autocomplete-plus](https://atom.io/packages/autocomplete-plus)
+ * [language-fortran](https://atom.io/packages/language-fortran)
+
+Additionally, you must have [Python](https://www.python.org/) installed on your system.
 
 ## Features
  * Provides suggestions across imported modules
