@@ -1,0 +1,11 @@
+'menu': [
+  {
+    label: 'Packages'
+    submenu: [
+      label: 'Autocomplete FORTRAN'
+      submenu: [
+        {label:'Rebuild Index', command:'autocomplete-fortran:rebuild'}
+      ]
+    ]
+  }
+]
