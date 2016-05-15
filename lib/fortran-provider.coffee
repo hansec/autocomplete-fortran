@@ -96,8 +96,21 @@ class FortranProvider
     try
       fileAST = JSON.parse(result)
     catch
-      console.log 'Error parsing file', filePath
+      console.log 'Error parsing file:', filePath
+      atom.notifications?.addError("Error parsing file '#{filePath}'", {
+        detail: 'Script failed',
+        dismissable: true
+      })
       return
+    #
+    if 'error' of fileAST
+      console.log 'Error parsing file:', filePath
+      atom.notifications?.addError("Error parsing file '#{filePath}'", {
+        detail: fileAST['error'],
+        dismissable: true
+      })
+      return
+    #
     for key of fileAST['objs']
       @projectObjList[key] = fileAST['objs'][key]
       if 'desc' of @projectObjList[key]

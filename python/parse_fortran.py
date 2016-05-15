@@ -325,7 +325,7 @@ def get_all_vdefs(test_str):
     return words
 #
 class fortran_file:
-    def __init__(self):
+    def __init__(self, indent_level=None):
         self.global_dict = {}
         self.scope_list = []
         self.variable_list = []
@@ -336,6 +336,7 @@ class fortran_file:
         self.current_scope = None
         self.END_REGEX = None
         self.enc_scope_name = None
+        self.indent_level = indent_level
     def get_enc_scope_name(self):
         if self.current_scope is None:
             return None
@@ -386,6 +387,9 @@ class fortran_file:
             else:
                 self.current_scope.add_use(mod_words[0])
     def dump_json(self):
+        if len(self.scope_stack) > 0:
+            print json.dumps({'error': 'Scope stack not empty'}, indent=self.indent_level)
+            return
         js_output = {'objs': {}, 'scopes': []}
         for scope in self.scope_list:
             js_output['objs'][scope.FQSN] = scope.write_scope()
@@ -398,7 +402,7 @@ class fortran_file:
         for public_obj in self.public_list:
             if public_obj in js_output['objs']:
                 js_output['objs'][public_obj]['vis'] = 1
-        print json.dumps(js_output, indent=2)
+        print json.dumps(js_output, indent=self.indent_level)
 
 #
 def read_visibility(def_str):
@@ -418,12 +422,14 @@ parser.add_option("-s", "--std",
 parser.add_option("-d", "--debug",
                   action="store_true", dest="debug", default=False,
                   help="Print debug information")
+parser.add_option("-p", "--pretty",
+                  action="store_true", dest="pretty", default=False,
+                  help="Format JSON output")
 parser.add_option("--file", dest="file", default=None,
                   help="Directories to parse")
 (options, args) = parser.parse_args()
 debug = options.debug
 #
-predict_ln = None
 if options.std:
     filename = 'STDIN'
     f = sys.stdin
@@ -431,7 +437,10 @@ else:
     filename = options.file
     f = open(filename)
 #
-file_obj = fortran_file()
+indent_level = None
+if options.pretty:
+    indent_level = 2
+file_obj = fortran_file(indent_level)
 line_number = 0
 next_line_num = 1
 at_eof = False
