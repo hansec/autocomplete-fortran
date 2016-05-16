@@ -1,3 +1,8 @@
+'context-menu':
+  'atom-text-editor':[
+    {label:'FORTRAN-Goto Declaration', command:'autocomplete-fortran:go-declaration'}
+  ]
+
 'menu': [
   {
     label: 'Packages'

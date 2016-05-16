@@ -223,7 +223,7 @@ class fortran_int(fortran_scope):
         child_list = []
         for child in self.children:
             child_list.append(child)
-        scope_dict = {'name': self.name, 'type': 'copy', 'children': child_list}
+        scope_dict = {'name': self.name, 'type': 'copy', 'fbound': [self.sline, self.eline], 'children': child_list}
         if self.vis == -1:
             scope_dict['vis'] = '-1'
         elif self.vis == 1:
@@ -252,7 +252,7 @@ class fortran_obj:
     def get_desc(self):
         return self.desc
     def write_scope(self):
-        scope_dict = {'name': self.name, 'type': self.get_type(), 'desc': self.get_desc()}
+        scope_dict = {'name': self.name, 'type': self.get_type(), 'fdef': self.sline, 'desc': self.get_desc()}
         if self.vis == -1:
             scope_dict['vis'] = '-1'
         elif self.vis == 1:

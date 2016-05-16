@@ -12,6 +12,7 @@ class FortranProvider
   pythonPath: ''
   parserPath: ''
   firstRun: true
+  indexReady: false
 
   fileObjInd: { }
   globalObjInd: []
@@ -19,6 +20,7 @@ class FortranProvider
   exclPaths: []
   modDirs: []
   modFiles: []
+  fileIndexed: []
   descList: []
 
   constructor: () ->
@@ -27,8 +29,10 @@ class FortranProvider
 
   rebuildIndex: () ->
     # Reset index
+    @indexReady = false
     @modDirs = []
     @modFiles = []
+    @fileIndexed = []
     @fileObjInd = { }
     @globalObjInd = []
     @projectObjList = { }
@@ -37,6 +41,21 @@ class FortranProvider
     @findModFiles()
     for filePath in @modFiles
       @fileUpdate(filePath)
+
+  checkIndex: () ->
+    if @indexReady
+      return true
+    for isIndexed in @fileIndexed
+      unless isIndexed
+        return false
+    @indexReady = true
+    return true
+
+  notifyBuildPending: (operation) ->
+    atom.notifications?.addWarning("Could not complete operation: #{operation}", {
+      detail: 'Indexing pending',
+      dismissable: true
+    })
 
   findModFiles: ()->
     F90Regex = /[a-z0-9_]*\.F90$/i
@@ -65,6 +84,7 @@ class FortranProvider
           filePath = path.join(modDir, file)
           if @exclPaths.indexOf(filePath) == -1
             @modFiles.push(filePath)
+            @fileIndexed.push(false)
 
   fileUpdate: (filePath)->
     F77Regex = /[a-z0-9_]*\.F$/i
@@ -119,8 +139,10 @@ class FortranProvider
       })
       return
     #
+    fileRef = @modFiles.indexOf(filePath)
     for key of fileAST['objs']
       @projectObjList[key] = fileAST['objs'][key]
+      @projectObjList[key]['file'] = fileRef
       if 'desc' of @projectObjList[key]
         descIndex = @descList.indexOf(@projectObjList[key]['desc'])
         if descIndex == -1
@@ -133,6 +155,7 @@ class FortranProvider
       if not key.match(/::/)
         @globalObjInd.push(key)
     @fileObjInd[filePath] = fileAST['scopes']
+    @fileIndexed[fileRef] = true
     #console.log 'Updated suggestions'
 
   getSuggestions: ({editor, bufferPosition, prefix}) ->
@@ -177,6 +200,47 @@ class FortranProvider
         return @addChildren(cursorScope, completions, null, [])
     return completions
 
+  goToDef: (word, editor, bufferPosition) ->
+    # Build index on first run
+    if @firstRun
+      @rebuildIndex()
+      @firstRun = false
+    @localUpdate(editor, bufferPosition.row)
+    unless @checkIndex()
+      @notifyBuildPending('Go To Definition')
+      return
+    wordLower = word.toLowerCase()
+    if @globalObjInd.indexOf(wordLower) != -1
+      return @getDefLoc(@projectObjList[wordLower])
+    #
+    lineScopes = @getLineScopes(editor, bufferPosition)
+    cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
+    if cursorScope?
+      @resolveIherited(cursorScope)
+      containingScope = @findInScope(cursorScope, wordLower)
+      if containingScope?
+        FQN = containingScope+"::"+wordLower
+        return @getDefLoc(@projectObjList[FQN])
+    #
+    lineContext = @getLineContext(editor, bufferPosition)
+    for lineScope in lineScopes
+      containingScope = @findInScope(lineScope, wordLower)
+      if containingScope?
+        FQN = containingScope+"::"+wordLower
+        return @getDefLoc(@projectObjList[FQN])
+    return null
+
+  getDefLoc: (varObj) ->
+    fileRef = varObj['file']
+    lineRef = null
+    if 'fdef' of varObj
+      lineRef = varObj['fdef']
+    if 'fbound' of varObj
+      lineRef = varObj['fbound'][0]
+    if lineRef?
+      return @modFiles[fileRef]+":"+lineRef.toString()
+    return null
+
   getLineContext: (editor, bufferPosition) ->
     useRegex = /^[ \t]*use/i
     line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
@@ -187,6 +251,8 @@ class FortranProvider
   getLineScopes: (editor, bufferPosition) ->
     filePath = editor.getPath()
     scopes = []
+    unless @fileObjInd[filePath]?
+      return []
     for key in @fileObjInd[filePath] # Look in currently active file for enclosing scopes
       if key of @projectObjList
         if bufferPosition.row+1 < @projectObjList[key]['fbound'][0]

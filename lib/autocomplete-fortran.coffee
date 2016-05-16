@@ -1,4 +1,4 @@
-{CompositeDisposable} = require 'atom'
+{CompositeDisposable,File} = require 'atom'
 
 module.exports =
   config:
@@ -17,6 +17,8 @@ module.exports =
     # Register command that rebuilds index
     @subscriptions.add atom.commands.add 'atom-workspace',
       'autocomplete-fortran:rebuild': => @rebuild()
+    @subscriptions.add atom.commands.add 'atom-text-editor:not([mini])',
+      'autocomplete-fortran:go-declaration': (e)=> @goDeclaration atom.workspace.getActiveTextEditor(),e
 
   deactivate: ->
     @subscriptions.dispose()
@@ -32,3 +34,21 @@ module.exports =
     console.log "Rebuild triggered"
     if @provider?
       @provider.rebuildIndex()
+
+  goDeclaration: (editor, e)->
+    editor.selectWordsContainingCursors()
+    varWord = editor.getSelectedText()
+    bufferRange = editor.getSelectedBufferRange()
+    defPos = @provider.goToDef(varWord, editor, bufferRange.end)
+    console.log defPos
+    if defPos?
+      splitInfo = defPos.split(":")
+      fileName = splitInfo[0]
+      lineRef = splitInfo[1]
+      f = new File fileName
+      f.exists().then (result) ->
+        atom.workspace.open fileName, {initialLine:lineRef-1, initialColumn:0} if result
+    else
+      atom.notifications?.addWarning("Could not find definition: '#{varWord}'", {
+        dismissable: true
+      })

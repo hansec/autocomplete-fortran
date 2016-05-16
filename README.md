@@ -1,10 +1,12 @@
 # autocomplete-fortran package
 
-This package provides autocomplete suggestions for FORTRAN code using [autocomplete-plus](https://atom.io/packages/autocomplete-plus).
+This package provides autocomplete suggestions and "Go To Declaration" support for FORTRAN code using [autocomplete-plus](https://atom.io/packages/autocomplete-plus).
 
 *Note:* This package is experimental.
 
 ![Autocomplete in user-defined types](http://staff.washington.edu/hansec/ac_fortran_ex1.gif)
+
+![Go To Declaration](http://staff.washington.edu/hansec/ac_fortran_ex2.gif)
 
 ## Requirements
 This package requires the following packages to be installed:
@@ -17,9 +19,12 @@ Additionally, you must have [Python](https://www.python.org/) installed on your 
  * Provides suggestions across imported modules
  * Handles suggestions within user-defined types even when nested
  * Provides argument list for subroutine and function calls
+ * "Go To Declaration" support for FORTRAN object (including fields in user-defined types)
 
 ## Usage
 Suggestions should be presented automatically while typing. At anytime you can force rebuilding of the index through the menu `Packages->Autocomplete FOTRAN->Rebuild Index`.
+
+"Go To Declaration" is also supported for FORTRAN objects as the `FORTRAN-Goto Declaration` option in the context menu (right-click in editor).
 
 ### Notes
  * Initial setup of the index, including file parsing, is performed upon the first suggestion call. This may cause the first suggestion to take a moment to appear for large projects (usually <2 seconds).
