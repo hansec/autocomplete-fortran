@@ -39,7 +39,8 @@ class FortranProvider
       @fileUpdate(filePath)
 
   findModFiles: ()->
-    F90Regex = /[a-z0-9_]*\.F90/i
+    F90Regex = /[a-z0-9_]*\.F90$/i
+    F77Regex = /[a-z0-9_]*\.F$/i
     projectDirs = atom.project.getPaths()
     @modDirs = projectDirs
     @exclPaths = []
@@ -60,14 +61,17 @@ class FortranProvider
     for modDir in @modDirs
       files = fs.readdirSync(modDir)
       for file in files
-        if file.match(F90Regex)
+        if file.match(F90Regex) or file.match(F77Regex)
           filePath = path.join(modDir, file)
           if @exclPaths.indexOf(filePath) == -1
             @modFiles.push(filePath)
 
   fileUpdate: (filePath)->
+    F77Regex = /[a-z0-9_]*\.F$/i
     command = @pythonPath
     args = [@parserPath,"--file=#{filePath}"]
+    if filePath.match(F77Regex)
+      args.push("--fixed")
     #
     new Promise (resolve) =>
       allOutput = []
@@ -77,14 +81,18 @@ class FortranProvider
       bufferedProcess = new BufferedProcess({command, args, stdout, stderr, exit})
 
   localUpdate: (editor, row)->
+    F77Regex = /[a-z0-9_]*\.F$/i
+    filePath = editor.getPath()
     command = @pythonPath
     args = [@parserPath,"-s"]
+    if filePath.match(F77Regex)
+      args.push("--fixed")
     #
     new Promise (resolve) =>
       allOutput = []
       stdout = (output) => allOutput.push(output)
       stderr = (output) => console.log output
-      exit = (code) => resolve(@handleCompletionResult(allOutput.join('\n'), code, editor.getPath()))
+      exit = (code) => resolve(@handleCompletionResult(allOutput.join('\n'), code, filePath))
       bufferedProcess = new BufferedProcess({command, args, stdout, stderr, exit})
       bufferedProcess.process.stdin.setEncoding = 'utf-8';
       bufferedProcess.process.stdin.write(editor.getText())

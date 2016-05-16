@@ -3,6 +3,25 @@ import json
 import sys
 from optparse import OptionParser
 #
+parser = OptionParser()
+parser.add_option("-s", "--std",
+                  action="store_true", dest="std", default=False,
+                  help="Read file from STDIN")
+parser.add_option("-d", "--debug",
+                  action="store_true", dest="debug", default=False,
+                  help="Print debug information")
+parser.add_option("-p", "--pretty",
+                  action="store_true", dest="pretty", default=False,
+                  help="Format JSON output")
+parser.add_option("--fixed",
+                  action="store_true", dest="fixed", default=False,
+                  help="Parse using fixed-format rules")
+parser.add_option("--file", dest="file", default=None,
+                  help="Directories to parse")
+(options, args) = parser.parse_args()
+debug = options.debug
+fixed_format = options.fixed
+#
 USE_REGEX = re.compile(r'([ \t]*USE )', re.I)
 SUB_REGEX = re.compile(r'([ \t]*(PURE|ELEMENTAL|RECURSIVE)?[ \t]*(SUBROUTINE))', re.I)
 END_SUB_REGEX = re.compile(r'([ \t]*(END)[ \t]*(SUBROUTINE))', re.I)
@@ -14,20 +33,26 @@ PROG_REGEX = re.compile(r'([ \t]*(PROGRAM))', re.I)
 END_PROG_REGEX = re.compile(r'([ \t]*(END)[ \t]*(PROGRAM))', re.I)
 INT_REGEX = re.compile(r'([ \t]*(INTERFACE))', re.I)
 END_INT_REGEX = re.compile(r'([ \t]*(END)[ \t]*(INTERFACE))', re.I)
+END_GEN_REGEX = re.compile(r'([ \t]*(END)[ ]*)$', re.I)
 TYPE_DEF_REGEX = re.compile(r'([ \t]*(TYPE)[ \t,])', re.I)
 EXTENDS_REGEX = re.compile(r'EXTENDS[ ]*\([a-z0-9_]*\)', re.I)
 END_TYPED_REGEX = re.compile(r'([ \t]*(END)[ \t]*(TYPE))', re.I)
 INT_PRO_REGEX = re.compile(r'([ \t]*(MODULE[ \t]*PROCEDURE))', re.I)
 NAT_VAR_DEF_REGEX = re.compile(r'([ \t]*(INTEGER|REAL|DOUBLE PRECISION|COMPLEX|CHARACTER|LOGICAL|PROCEDURE))', re.I)
-UD_VAR_DEF_REGEX = re.compile(r'([ \t]*(CLASS\(|TYPE\(|PROCEDURE\())', re.I)
-KEYWORD_REGEX = re.compile(r'(PUBLIC|PRIVATE|ALLOCATABLE|POINTER|DIMENSION|PURE)', re.I)
+UD_VAR_DEF_REGEX = re.compile(r'([ \t]*(CLASS[ ]*\(|TYPE[ ]*\(|PROCEDURE[ ]*\())', re.I)
+KEYWORD_REGEX = re.compile(r'(PUBLIC|PRIVATE|ALLOCATABLE|POINTER|DIMENSION)', re.I)
 VIS_REGEX = re.compile(r'(PUBLIC|PRIVATE)', re.I)
 WORD_REGEX = re.compile(r'[a-z][a-z0-9_]*', re.I)
 LINK_REGEX = re.compile(r'([a-z][a-z0-9_]*[ \t]*)=>([ \t]*[a-z][a-z0-9_]*)', re.I)
 SUB_PAREN_MATCH = re.compile(r'\([a-z0-9_, ]*\)', re.I)
 KIND_SPEC_MATCH = re.compile(r'\([a-z0-9_, =]*\)', re.I)
-COMMENT_LINE_MATCH = re.compile(r'([ \t]*!)')
-CONT_REGEX = re.compile(r'([ \t]*&)')
+#
+if fixed_format:
+    COMMENT_LINE_MATCH = re.compile(r'(!|c|d|\*)')
+    CONT_REGEX = re.compile(r'(     [\S])')
+else:
+    COMMENT_LINE_MATCH = re.compile(r'([ \t]*!)')
+    CONT_REGEX = re.compile(r'([ \t]*&)')
 #
 class fortran_scope:
     def __init__(self, line_number, name, enc_scope=None, args=None):
@@ -258,6 +283,7 @@ def parse_subroutine_def(test_str):
         if paren_match is not None:
             word_match = WORD_REGEX.findall(paren_match.group(0))
             if word_match is not None:
+                word_match = [word.lower() for word in word_match]
                 args = ','.join(word_match)
     #
     return name, args
@@ -415,21 +441,6 @@ def read_visibility(def_str):
             curr_vis = 1
     return curr_vis
 #
-parser = OptionParser()
-parser.add_option("-s", "--std",
-                  action="store_true", dest="std", default=False,
-                  help="Read file from STDIN")
-parser.add_option("-d", "--debug",
-                  action="store_true", dest="debug", default=False,
-                  help="Print debug information")
-parser.add_option("-p", "--pretty",
-                  action="store_true", dest="pretty", default=False,
-                  help="Format JSON output")
-parser.add_option("--file", dest="file", default=None,
-                  help="Directories to parse")
-(options, args) = parser.parse_args()
-debug = options.debug
-#
 if options.std:
     filename = 'STDIN'
     f = sys.stdin
@@ -444,9 +455,14 @@ file_obj = fortran_file(indent_level)
 line_number = 0
 next_line_num = 1
 at_eof = False
+next_line = None
 while(not at_eof):
     # Get next line
-    line = f.readline()
+    if next_line is None:
+        line = f.readline()
+    else:
+        line = next_line
+        next_line = None
     line_number = next_line_num
     next_line_num = line_number + 1
     if line == '':
@@ -456,25 +472,35 @@ while(not at_eof):
     if (match is not None):
         continue
     # Merge lines with continuations
-    iAmper = line.find('&')
-    iComm = line.find('!')
-    if iComm < 0:
-        iComm = iAmper + 1
-    while (iAmper >= 0 and iAmper < iComm):
-        split_line = line.split('&')
+    if fixed_format:
         next_line = f.readline()
-        if next_line == '':
-            at_eof = True
-            break # Reached end of file
         cont_match = CONT_REGEX.match(next_line)
-        if cont_match is not None:
-            next_line = next_line[cont_match.end(0):]
-        next_line_num += 1
-        line = split_line[0].rstrip() + next_line
+        while( cont_match is not None ):
+            line = line[:-1] + next_line[6:-1].strip()
+            next_line_num += 1
+            next_line = f.readline()
+            cont_match = CONT_REGEX.match(next_line)
+    else:
         iAmper = line.find('&')
         iComm = line.find('!')
         if iComm < 0:
             iComm = iAmper + 1
+        while (iAmper >= 0 and iAmper < iComm):
+            split_line = line.split('&')
+            next_line = f.readline()
+            if next_line == '':
+                at_eof = True
+                break # Reached end of file
+            cont_match = CONT_REGEX.match(next_line)
+            if cont_match is not None:
+                next_line = next_line[cont_match.end(0):]
+            next_line_num += 1
+            line = split_line[0].rstrip() + next_line.strip()
+            iAmper = line.find('&')
+            iComm = line.find('!')
+            if iComm < 0:
+                iComm = iAmper + 1
+        next_line = None
     # Test for variable defs
     match = NAT_VAR_DEF_REGEX.match(line)
     if (match is not None):
@@ -564,6 +590,12 @@ while(not at_eof):
     # Test for scope end
     if file_obj.END_REGEX is not None:
         match = file_obj.END_REGEX.match(line)
+        if (match is not None):
+            file_obj.end_scope(line_number)
+            if(debug):
+                print 'Found scope end, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
+            continue
+        match = END_GEN_REGEX.match(line)
         if (match is not None):
             file_obj.end_scope(line_number)
             if(debug):

@@ -1,6 +1,6 @@
 # autocomplete-fortran package
 
-This package provides autocomplete suggestions for FORTRAN code (currently modern free-form syntax only) using [autocomplete-plus](https://atom.io/packages/autocomplete-plus).
+This package provides autocomplete suggestions for FORTRAN code using [autocomplete-plus](https://atom.io/packages/autocomplete-plus).
 
 *Note:* This package is experimental.
 
@@ -23,10 +23,11 @@ Suggestions should be presented automatically while typing. At anytime you can f
 
 ### Notes
  * Initial setup of the index, including file parsing, is performed upon the first suggestion call. This may cause the first suggestion to take a moment to appear for large projects (usually <2 seconds).
+ * The grammar (fixed or free) is currently determined by its file extension (`*.f` or `*.F` for fixed-form) and (`*.f90` or `*.F90` for free-form)
  * See TODO section.
 
 ## Configuration
-By default all files with the suffix `*.f90` or `*.F90` in the base atom project directory are parsed
+By default all files with the suffix `*.f`,`*.F`,`*.f90`, or `*.F90` in the base atom project directory are parsed
 and used for generating suggestions. Specific folders containing FORTRAN source files can be set for
 a given project by placing a JSON file (example below) named `.ac_fortran` in the base directory.
 Folders to search are listed in the variable `mod_dirs` (relative to the project root) and excluded
@@ -41,8 +42,6 @@ any nested sub directories must be explicitly listed.
 The FORTRAN parser is written in Python so a Python implementation is required to use this package. The path to Python may be set in package settings.
 
 ## TODOs and current limitations
- * Only supports modern, free-form syntax
- * Requires explicit end statements for all scopes (ie. "END SUBROUTINE" instead of "END")
  * Inherited fields do not automatically update if fields are added/removed from a parent type
  * Provide POINTER/ALLOCATABLE information
  * Provide return type for functions
