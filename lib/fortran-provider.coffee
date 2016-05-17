@@ -183,16 +183,15 @@ class FortranProvider
           continue
         completions.push(@buildCompletion(@projectObjList[key]))
       #
+      usedMod = { }
       for lineScope in lineScopes
         completions = @addChildren(lineScope, completions, prefixLower, [])
-        # Process USE STMT
-        if 'use' of @projectObjList[lineScope]
-          for use_mod in @projectObjList[lineScope]['use']
-            if use_mod[0] of @projectObjList
-              if lineContext == 1
-                completions = @addPublicChildren(use_mod[0], completions, prefixLower, [])
-              else
-                completions = @addPublicChildren(use_mod[0], completions, prefixLower, use_mod[1])
+        usedMod = @getUseSearches(lineScope, usedMod, [])
+      for useMod of usedMod
+        if lineContext == 1
+          completions = @addPublicChildren(useMod, completions, prefixLower, [])
+        else
+          completions = @addPublicChildren(useMod, completions, prefixLower, usedMod[useMod])
     else
       lineScopes = @getLineScopes(editor, bufferPosition)
       cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
@@ -210,10 +209,8 @@ class FortranProvider
       @notifyBuildPending('Go To Definition')
       return
     wordLower = word.toLowerCase()
-    if @globalObjInd.indexOf(wordLower) != -1
-      return @getDefLoc(@projectObjList[wordLower])
-    #
     lineScopes = @getLineScopes(editor, bufferPosition)
+    # Look up class tree
     cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
     if cursorScope?
       @resolveIherited(cursorScope)
@@ -221,7 +218,10 @@ class FortranProvider
       if containingScope?
         FQN = containingScope+"::"+wordLower
         return @getDefLoc(@projectObjList[FQN])
-    #
+    # Look in global context
+    if @globalObjInd.indexOf(wordLower) != -1
+      return @getDefLoc(@projectObjList[wordLower])
+    # Look in local scopes
     lineContext = @getLineContext(editor, bufferPosition)
     for lineScope in lineScopes
       containingScope = @findInScope(lineScope, wordLower)
@@ -275,15 +275,14 @@ class FortranProvider
           return childScopes.join('::')
     # Search in use
     result = null
-    if 'use' of @projectObjList[scope]
-      for use_mod in @projectObjList[scope]['use']
-        if use_mod[0] of @projectObjList
-          if use_mod[1].length > 0
-            if use_mod[1].indexOf(name) == -1
-              continue
-          result = @findInScope(use_mod[0], name)
-          if result?
-            return result
+    usedMod = @getUseSearches(scope, { }, [])
+    for useMod of usedMod
+      if usedMod[useMod].length > 0
+        if usedMod[useMod].indexOf(name) == -1
+          continue
+      result = @findInScope(useMod, name)
+      if result?
+        return result
     # Search parent
     if not result?
       endOfScope = scope.lastIndexOf('::')
@@ -301,12 +300,13 @@ class FortranProvider
 
   getClassScope: (editor, bufferPosition, currScopes) ->
     typeDerefCheck = /%/i
-    objBreakReg = /[\(,=]/ig
-    parenRepReg = /\(([^\)]+)\)/ig
+    objBreakReg = /[\/\-(.,+*<>=$:]/ig
+    parenRepReg = /\((.+)\)/ig
     line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
     searchScope = null
     if line.match(typeDerefCheck)?
-      lineNoParen = line.replace(parenRepReg,'')
+      lineNoParen1 = line.replace(parenRepReg,'$')
+      lineNoParen = lineNoParen1.replace(/\$%/i,'%')
       lineCommBreak = lineNoParen.replace(objBreakReg, ' ')
       lastSpace = lineCommBreak.lastIndexOf(' ')
       if lastSpace >=0
@@ -314,11 +314,12 @@ class FortranProvider
       splitLine = lineNoParen.split('%')
       prefixVar = splitLine.pop()
       for varName in splitLine
+        varNameLower = varName.toLowerCase()
         if searchScope?
           @resolveIherited(searchScope)
-          containingScope = @findInScope(searchScope, varName)
+          containingScope = @findInScope(searchScope, varNameLower)
           if containingScope?
-            varKey = containingScope + "::" + varName
+            varKey = containingScope + "::" + varNameLower
             if @projectObjList[varKey]['type'].startsWith('var')
               varDefName = @getVarType(varKey)
               containingScope = @findInScope(containingScope, varDefName)
@@ -328,9 +329,9 @@ class FortranProvider
         else
           for currScope in currScopes
             @resolveIherited(currScope)
-            containingScope = @findInScope(currScope, varName)
+            containingScope = @findInScope(currScope, varNameLower)
             if containingScope?
-              varKey = containingScope + "::" + varName
+              varKey = containingScope + "::" + varNameLower
               if @projectObjList[varKey]['type'].startsWith('var')
                 varDefName = @getVarType(varKey)
                 containingScope = @findInScope(containingScope, varDefName)
@@ -338,7 +339,7 @@ class FortranProvider
               break
     return searchScope # Unknown enable everything!!!!
 
-  addChildren: (scope, completions, prefix, only_list) ->
+  addChildren: (scope, completions, prefix, onlyList) ->
     unless scope of @projectObjList
       return completions
     unless 'children' of @projectObjList[scope]
@@ -348,8 +349,8 @@ class FortranProvider
       if prefix?
         unless child.startsWith(prefix)
           continue
-      if only_list.length > 0
-        if only_list.indexOf(child) == -1
+      if onlyList.length > 0
+        if onlyList.indexOf(child) == -1
           continue
       childKey = scope+'::'+child
       if childKey of @projectObjList
@@ -371,36 +372,68 @@ class FortranProvider
     if 'in_children' of @projectObjList[scope]
       for childKey in @projectObjList[scope]['in_children']
         completions.push(@buildCompletion(@projectObjList[childKey]))
-    # Process USE STMT (only if no only_list)
-    if ('use' of @projectObjList[scope]) and (only_list.length == 0)
-      for use_mod in @projectObjList[scope]['use']
-        if use_mod[0] of @projectObjList
-          completions = @addPublicChildren(use_mod[0], completions, prefix, use_mod[1])
     return completions
 
-  addPublicChildren: (scope, completions, prefix, only_list) ->
+  getUseSearches: (scope, modDict, onlyList) ->
+    # Process USE STMT (only if no onlyList)
+    if 'use' of @projectObjList[scope]
+      for useMod in @projectObjList[scope]['use']
+        if useMod[0] of @projectObjList
+          mergedOnly = @getOnlyOverlap(onlyList, useMod[1])
+          unless mergedOnly?
+            continue
+          if useMod[0] of modDict
+            if modDict[useMod[0]].length > 0
+              if mergedOnly.length == 0
+                modDict[useMod[0]] = []
+              else
+                for only in mergedOnly
+                  if modDict[useMod[0]].indexOf(only) == -1
+                    modDict[useMod[0]].push(only)
+          else
+            modDict[useMod[0]] = mergedOnly
+          modDict = @getUseSearches(useMod[0], modDict, mergedOnly)
+    return modDict
+
+  getOnlyOverlap: (currList, newList) ->
+    if currList.length == 0
+      return newList
+    if newList.length == 0
+      return currList
+    mergeList = []
+    hasOverlap = false
+    for elem in newList
+      unless currList.indexOf(elem) == -1
+        mergeList.push(elem)
+        hasOverlap = true
+    if hasOverlap
+      return mergeList
+    else
+      return null
+
+  addPublicChildren: (scope, completions, prefix, onlyList) ->
     unless scope of @projectObjList
       return completions
     unless 'children' of @projectObjList[scope]
       return
     children = @projectObjList[scope]['children']
-    curr_vis = 1
+    currVis = 1
     if 'vis' of @projectObjList[scope]
-      curr_vis = parseInt(@projectObjList[scope]['vis'])
+      currVis = parseInt(@projectObjList[scope]['vis'])
     for child in children
       if prefix?
         unless child.startsWith(prefix)
           continue
-      if only_list.length > 0
-        if only_list.indexOf(child) == -1
+      if onlyList.length > 0
+        if onlyList.indexOf(child) == -1
           continue
       childKey = scope+'::'+child
       if childKey of @projectObjList
         if 'vis' of @projectObjList[childKey]
-          if parseInt(@projectObjList[childKey]['vis']) + curr_vis < 0
+          if parseInt(@projectObjList[childKey]['vis']) + currVis < 0
             continue
         else
-          if curr_vis < 0
+          if currVis < 0
             continue
         if @projectObjList[childKey]['type'] == 'copy'
           @resolveInterface(childKey, scope)
@@ -420,11 +453,6 @@ class FortranProvider
     if 'in_children' of @projectObjList[scope]
       for childKey in @projectObjList[scope]['in_children']
         completions.push(@buildCompletion(@projectObjList[childKey]))
-    # Process USE STMT (only if no only_list)
-    if ('use' of @projectObjList[scope]) and (only_list.length == 0)
-      for use_mod in @projectObjList[scope]['use']
-        if use_mod[0] of @projectObjList
-          completions = @addPublicChildren(use_mod[0], completions, prefix, use_mod[1])
     return completions
 
   resolveInterface: (intObjKey, scope) ->
