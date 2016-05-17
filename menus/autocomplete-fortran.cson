@@ -1,5 +1,5 @@
 'context-menu':
-  'atom-text-editor':[
+  "atom-text-editor[data-grammar~=fortran]:not(.mini)":[
     {label:'FORTRAN-Goto Declaration', command:'autocomplete-fortran:go-declaration'}
   ]
 

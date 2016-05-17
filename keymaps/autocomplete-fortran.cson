@@ -1,0 +1,17 @@
+# Keybindings require three things to be fully defined: A selector that is
+# matched against the focused element, the keystroke and the command to
+# execute.
+#
+# Below is a basic keybinding which registers on all platforms by applying to
+# the root workspace element.
+
+# For more detailed documentation see
+# https://atom.io/docs/latest/behind-atom-keymaps-in-depth
+'.platform-darwin atom-text-editor[data-grammar~=fortran]:not(.mini)':
+  'alt-cmd-g': 'autocomplete-fortran:go-declaration'
+
+'.platform-linux atom-text-editor[data-grammar~=fortran]:not(.mini)':
+  'ctrl-alt-g': 'autocomplete-fortran:go-declaration'
+
+'.platform-win32 atom-text-editor[data-grammar~=fortran]:not(.mini)':
+  'ctrl-alt-g': 'autocomplete-fortran:go-declaration'
