@@ -40,12 +40,12 @@ END_TYPED_REGEX = re.compile(r'([ \t]*(END)[ \t]*(TYPE))', re.I)
 INT_PRO_REGEX = re.compile(r'([ \t]*(MODULE[ \t]*PROCEDURE))', re.I)
 NAT_VAR_DEF_REGEX = re.compile(r'([ \t]*(INTEGER|REAL|DOUBLE PRECISION|COMPLEX|CHARACTER|LOGICAL|PROCEDURE))', re.I)
 UD_VAR_DEF_REGEX = re.compile(r'([ \t]*(CLASS[ ]*\(|TYPE[ ]*\(|PROCEDURE[ ]*\())', re.I)
-KEYWORD_REGEX = re.compile(r'(PUBLIC|PRIVATE|ALLOCATABLE|POINTER|DIMENSION)', re.I)
+KEYWORD_REGEX = re.compile(r'(PUBLIC|PRIVATE|ALLOCATABLE|POINTER|DIMENSION|OPTIONAL|INTENT|DEFERRED|NOPASS|SAVE)', re.I)
 VIS_REGEX = re.compile(r'(PUBLIC|PRIVATE)', re.I)
 WORD_REGEX = re.compile(r'[a-z][a-z0-9_]*', re.I)
 LINK_REGEX = re.compile(r'([a-z][a-z0-9_]*[ \t]*)=>([ \t]*[a-z][a-z0-9_]*)', re.I)
 SUB_PAREN_MATCH = re.compile(r'\([a-z0-9_, ]*\)', re.I)
-KIND_SPEC_MATCH = re.compile(r'\([a-z0-9_, =]*\)', re.I)
+KIND_SPEC_MATCH = re.compile(r'\([a-z0-9_, =*]*\)', re.I)
 #
 if fixed_format:
     COMMENT_LINE_MATCH = re.compile(r'(!|c|d|\*)')
@@ -83,12 +83,25 @@ class fortran_scope:
         return 'unknown'
     def get_desc(self):
         return 'unknown'
+    def is_optional(self):
+        return False
     def end(self, line_number):
         self.eline = line_number
     def write_scope(self):
         scope_dict = {'name': self.name, 'type': self.get_type(), 'desc': self.get_desc(), 'fbound': [self.sline, self.eline], 'children': []}#{}}
         if self.args is not None:
-            scope_dict['args'] = self.args
+            arg_str = self.args
+            if len(self.children) > 0:
+                args_split = arg_str.split(',')
+                for child in self.children:
+                    try:
+                        ind = args_split.index(child.name)
+                    except:
+                        continue
+                    if child.is_optional():
+                        args_split[ind] = args_split[ind] + "=" + args_split[ind]
+                arg_str = ",".join(args_split)
+            scope_dict['args'] = arg_str
         if len(self.children) > 0:
             for child in self.children:
                 scope_dict['children'].append(child.name)
@@ -231,10 +244,11 @@ class fortran_int(fortran_scope):
         return scope_dict
 #
 class fortran_obj:
-    def __init__(self, line_number, name, var_desc, enc_scope=None, link_obj=None):
+    def __init__(self, line_number, name, var_desc, modifiers, enc_scope=None, link_obj=None):
         self.sline = line_number
         self.name = name.lower()
         self.desc = var_desc
+        self.modifiers = modifiers
         self.children = []
         self.vis = 0
         if link_obj is not None:
@@ -245,12 +259,23 @@ class fortran_obj:
             self.FQSN = enc_scope.lower() + "::" + self.name
         else:
             self.FQSN = self.name
+        for modifier in self.modifiers:
+            if modifier == 4:
+                self.vis = 1
+            elif modifier == 5:
+                self.vis = -1
     def set_visibility(self, new_vis):
         self.vis = new_vis
     def get_type(self):
         return 'variable'
     def get_desc(self):
         return self.desc
+    def is_optional(self):
+        try:
+            ind = self.modifiers.index(3)
+        except:
+            return False
+        return True
     def write_scope(self):
         scope_dict = {'name': self.name, 'type': self.get_type(), 'fdef': self.sline, 'desc': self.get_desc()}
         if self.vis == -1:
@@ -259,6 +284,8 @@ class fortran_obj:
             scope_dict['vis'] = '1'
         if self.link_obj is not None:
             scope_dict['link'] = self.link_obj
+        if len(self.modifiers) > 0:
+            scope_dict['mods'] = self.modifiers
         return scope_dict
 #
 def parse_subroutine_def(test_str):
@@ -306,6 +333,71 @@ def parse_type_def(test_str):
             parent = ext_match[0][i1+1:i2]
     #
     return name, parent
+#
+def parse_var_def(test_str, scope_word):
+    # Parse variable def
+    kind_match = KIND_SPEC_MATCH.match(test_str)
+    if kind_match is not None:
+        scope_word += kind_match.group(0).strip()
+        test_str = test_str[kind_match.end(0):]
+    #
+    test_str = test_str.split('!')[0]
+    test_str = test_str.replace(',',' ')
+    line_split = test_str[:-1].split(' ')
+    modifiers = []
+    var_words = []
+    for (i,word) in enumerate(line_split):
+        if word == '':
+            continue
+        if word == '::':
+            var_words = line_split[i+1:]
+            break
+        key_match = KEYWORD_REGEX.match(word)
+        if key_match is not None:
+            key_lower = key_match.group(0).lower()
+            if key_lower == 'pointer':
+                modifiers.append(1)
+            elif key_lower == 'allocatable':
+                modifiers.append(2)
+            elif key_lower == 'optional':
+                modifiers.append(3)
+            elif key_lower == 'public':
+                modifiers.append(4)
+            elif key_lower == 'private':
+                modifiers.append(5)
+            elif key_lower == 'nopass':
+                modifiers.append(6)
+            #elif key_lower == 'dimension':
+            # Handle this info
+        else:
+            var_words = line_split[i:]
+            break
+    if len(var_words)==0:
+        return None, None, None, None
+    # Look for link
+    var_line = " ".join(var_words)
+    link_match = LINK_REGEX.match(var_line)
+    if link_match is not None:
+        var_key = link_match.group(1).strip()
+        parent_key = link_match.group(2).strip()
+        if parent_key.lower() != 'null':
+            return 1, scope_word, [], [var_key, parent_key]
+        else:
+            return 0, scope_word, modifiers, [var_key]
+    # Assemble variables
+    var_names = []
+    skip_next = False
+    for word in var_words:
+        if word == '=':
+            skip_next = True
+            continue
+        if skip_next:
+            skip_next = False
+            continue
+        word_match = WORD_REGEX.match(word)
+        if word_match is not None:
+            var_names.append(word_match.group(0))
+    return 0, scope_word, modifiers, var_names
 #
 def get_first_nonkey(test_str):
     word_match = WORD_REGEX.findall(test_str)
@@ -501,6 +593,49 @@ while(not at_eof):
             if iComm < 0:
                 iComm = iAmper + 1
         next_line = None
+    # Test for user-defined and procedure variables
+    match = UD_VAR_DEF_REGEX.match(line)
+    if (match is not None):
+        scope_word = match.group(0).strip()
+        first_char = scope_word[0].lower()
+        if first_char == 'p': # Procedure found
+            end_ind = line[match.end(0):].find(')')
+            scope_word = line[:end_ind+1+match.end(0)].strip()
+            if file_obj.current_scope is None:
+                continue # Skip if no enclosing scope (something is wrong!)
+            trailing_line = line[end_ind+1+match.end(0):]
+            vtype, scope_word, modifiers, var_names = parse_var_def(trailing_line, scope_word)
+            if vtype == 0:
+                i1 = scope_word.find('(')
+                i2 = scope_word.find(')')
+                link_name = None
+                if i1 > -1 and i2 > -1:
+                    link_name = scope_word[i1+1:i2]
+                for var_name in var_names:
+                    new_var = fortran_obj(line_number, var_name, scope_word.upper(), modifiers, file_obj.enc_scope_name, link_name)
+                    file_obj.add_variable(new_var)
+            elif vtype == 1:
+                new_var = fortran_obj(line_number, var_names[0], scope_word.upper(), modifiers, file_obj.enc_scope_name, var_names[1])
+                file_obj.add_variable(new_var)
+            if(debug):
+                print 'Found procedure, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
+        else: # UD-Type found
+            end_ind = line[match.end(0):].find(')')
+            scope_word = line[:end_ind+1+match.end(0)].strip()
+            if file_obj.current_scope is None:
+                continue # Skip if no enclosing scope (something is wrong!)
+            trailing_line = line[end_ind+1+match.end(0):]
+            vtype, scope_word, modifiers, var_names = parse_var_def(trailing_line, scope_word)
+            if vtype == 0:
+                for var_name in var_names:
+                    new_var = fortran_obj(line_number, var_name, scope_word.upper(), modifiers, file_obj.enc_scope_name)
+                    file_obj.add_variable(new_var)
+            elif vtype == 1:
+                new_var = fortran_obj(line_number, var_names[0], scope_word.upper(), modifiers, file_obj.enc_scope_name, var_names[1])
+                file_obj.add_variable(new_var)
+            if(debug):
+                print 'Found UD-type variable, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
+        continue
     # Test for variable defs
     match = NAT_VAR_DEF_REGEX.match(line)
     if (match is not None):
@@ -517,75 +652,18 @@ while(not at_eof):
                     print 'Found function start, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
                 continue
         # Parse variable def
-        kind_match = KIND_SPEC_MATCH.match(trailing_line)
-        if kind_match is not None:
-            scope_word += kind_match.group(0).strip()
-        line_split = line.split('::')
-        if len(line_split) == 1:
-            continue
         if file_obj.current_scope is None:
             continue # Skip if no enclosing scope (something is wrong!)
-        curr_vis = read_visibility(line_split[0])
-        var_def_type = scope_word
-        line_post_sep = line_split[1]
-        # Look for link
-        link_match = LINK_REGEX.match(line_post_sep.strip())
-        if link_match is not None:
-            var_key = link_match.group(1).strip()
-            parent_key = link_match.group(2).strip()
-            if parent_key.lower() != 'null':
-                new_var = fortran_obj(line_number, var_key, scope_word.upper(), file_obj.enc_scope_name, parent_key)
+        vtype, scope_word, modifiers, var_names = parse_var_def(trailing_line, scope_word)
+        if vtype == 0:
+            for var_name in var_names:
+                new_var = fortran_obj(line_number, var_name, scope_word.upper(), modifiers, file_obj.enc_scope_name)
                 file_obj.add_variable(new_var)
-                continue
-        keys = get_all_vdefs(line_post_sep)
-        if keys is not None:
-            for key in keys:
-                new_var = fortran_obj(line_number, key, scope_word.upper(), file_obj.enc_scope_name)
-                new_var.set_visibility(curr_vis)
-                file_obj.add_variable(new_var)
+        elif vtype == 1:
+            new_var = fortran_obj(line_number, var_names[0], scope_word.upper(), modifiers, file_obj.enc_scope_name, var_names[1])
+            file_obj.add_variable(new_var)
         if(debug):
             print 'Found native variable, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-    # Test for user-defined and procedure variables
-    match = UD_VAR_DEF_REGEX.match(line)
-    if (match is not None):
-        scope_word = match.group(0).strip()
-        first_char = scope_word[0].lower()
-        if first_char == 'p': # Procedure found
-            end_ind = line[match.end(0):].find(')')
-            scope_word = line[:end_ind+1+match.end(0)].strip()
-            line_split = line.split('::')
-            if len(line_split) == 1:
-                continue
-            if file_obj.current_scope is None:
-                continue # Skip if no enclosing scope (something is wrong!)
-            curr_vis = read_visibility(line_split[0])
-            line_post_sep = line_split[1]
-            keys = get_all_vdefs(line_post_sep)
-            if keys is not None:
-                for key in keys:
-                    new_var = fortran_obj(line_number, key, scope_word.upper(), file_obj.enc_scope_name)
-                    new_var.set_visibility(curr_vis)
-                    file_obj.add_variable(new_var)
-            if(debug):
-                print 'Found procedure, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-        else: # UD-Type found
-            end_ind = line[match.end(0):].find(')')
-            scope_word = line[:end_ind+1+match.end(0)].strip()
-            line_split = line.split('::')
-            if len(line_split) == 1:
-                continue
-            if file_obj.current_scope is None:
-                continue # Skip if no enclosing scope (something is wrong!)
-            curr_vis = read_visibility(line_split[0])
-            line_post_sep = line_split[1]
-            keys = get_all_vdefs(line_post_sep)
-            if keys is not None:
-                for key in keys:
-                    new_var = fortran_obj(line_number, key, scope_word.upper(), file_obj.enc_scope_name)
-                    new_var.set_visibility(curr_vis)
-                    file_obj.add_variable(new_var)
-            if(debug):
-                print 'Found UD-type variable, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
         continue
     # Test for scope end
     if file_obj.END_REGEX is not None:

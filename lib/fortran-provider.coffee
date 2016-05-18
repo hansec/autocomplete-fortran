@@ -303,6 +303,20 @@ class FortranProvider
     objBreakReg = /[\/\-(.,+*<>=$:]/ig
     parenRepReg = /\((.+)\)/ig
     line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
+    #
+    unless line.match(typeDerefCheck)?
+      return null
+    parenCount = 0
+    lineCopy = line
+    for i in [0..lineCopy.length-1]
+      currChar = lineCopy[lineCopy.length-i-1]
+      if parenCount == 0 and currChar.match(objBreakReg)
+        line = lineCopy.substring(lineCopy.length-i)
+        break
+      if currChar == '('
+        parenCount -= 1
+      if currChar == ')'
+        parenCount += 1
     searchScope = null
     if line.match(typeDerefCheck)?
       lineNoParen1 = line.replace(parenRepReg,'$')
@@ -364,7 +378,10 @@ class FortranProvider
             @resolveLink(childKey, scope)
             repName = @projectObjList[childKey]['name']
             copyKey = @projectObjList[childKey]['res_link']
-            completions.push(@buildCompletion(@projectObjList[copyKey], repName))
+            doPass = false
+            if @projectObjList[scope]['type'] == 'class'
+              doPass = @testPass(@projectObjList[childKey])
+            completions.push(@buildCompletion(@projectObjList[copyKey], repName, doPass))
           else
             completions.push(@buildCompletion(@projectObjList[childKey]))
     # Add inherited
@@ -510,16 +527,41 @@ class FortranProvider
             @projectObjList[scope]['in_children'].push(childKey)
     return
 
-  buildCompletion: (suggestion, repName=null) ->
+  buildCompletion: (suggestion, repName=null, stripArg=false) ->
     name = suggestion['name']
     if repName?
       name = repName
+    mods = @getModifiers(suggestion)
     if 'args' of suggestion
+      argStr = suggestion['args']
+      if stripArg
+        i1 = argStr.indexOf(',')
+        if i1 > -1
+          argStr = argStr.substring(i1+1).trim()
+        else
+          argStr = ''
       type: suggestion['type']
-      snippet: name + "(" + suggestion['args'] + ")"
-      leftLabel: @descList[suggestion['desc']]
+      snippet: name + "(" + argStr + ")"
+      leftLabel: @descList[suggestion['desc']]+mods
     else
       type: suggestion['type']
       text: name
       leftLabel: @descList[suggestion['desc']]
+      description: mods
     #rightLabel: 'My Provider'
+
+  getModifiers: (suggestion) ->
+    modList = []
+    if 'mods' of suggestion
+      for mod in suggestion['mods']
+        switch mod
+          when 1 then modList.push("POINTER")
+          when 2 then modList.push("ALLOCATABLE")
+    return modList.join(', ')
+
+  testPass: (obj) ->
+    if 'mods' of obj
+      ind = obj['mods'].indexOf(6)
+      if ind != -1
+        return false
+    return true
