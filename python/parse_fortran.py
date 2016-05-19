@@ -26,6 +26,7 @@ USE_REGEX = re.compile(r'([ \t]*USE )', re.I)
 SUB_REGEX = re.compile(r'([ \t]*(PURE|ELEMENTAL|RECURSIVE)?[ \t]*(SUBROUTINE))', re.I)
 END_SUB_REGEX = re.compile(r'([ \t]*(END)[ \t]*(SUBROUTINE))', re.I)
 FUN_REGEX = re.compile(r'([ \t]*(PURE|ELEMENTAL|RECURSIVE)?[ \t]*(FUNCTION))', re.I)
+RESULT_REGEX = re.compile(r'(RESULT[ ]*\(([a-z0-9_]*)\))', re.I)
 END_FUN_REGEX = re.compile(r'([ \t]*(END)[ \t]*(FUNCTION))', re.I)
 MOD_REGEX = re.compile(r'([ \t]*(MODULE))', re.I)
 END_MOD_REGEX = re.compile(r'([ \t]*(END)[ \t]*(MODULE))', re.I)
@@ -38,9 +39,9 @@ TYPE_DEF_REGEX = re.compile(r'([ \t]*(TYPE)[ \t,])', re.I)
 EXTENDS_REGEX = re.compile(r'EXTENDS[ ]*\([a-z0-9_]*\)', re.I)
 END_TYPED_REGEX = re.compile(r'([ \t]*(END)[ \t]*(TYPE))', re.I)
 INT_PRO_REGEX = re.compile(r'([ \t]*(MODULE[ \t]*PROCEDURE))', re.I)
-NAT_VAR_DEF_REGEX = re.compile(r'([ \t]*(INTEGER|REAL|DOUBLE PRECISION|COMPLEX|CHARACTER|LOGICAL|PROCEDURE))', re.I)
+NAT_VAR_DEF_REGEX = re.compile(r'([ \t]*(INTEGER|REAL|DOUBLE PRECISION|COMPLEX|CHARACTER|LOGICAL|PROCEDURE)([ \t]*\([a-z0-9_ =*]*\)|[, ]))', re.I)
 UD_VAR_DEF_REGEX = re.compile(r'([ \t]*(CLASS[ ]*\(|TYPE[ ]*\(|PROCEDURE[ ]*\())', re.I)
-KEYWORD_REGEX = re.compile(r'(PUBLIC|PRIVATE|ALLOCATABLE|POINTER|DIMENSION|OPTIONAL|INTENT|DEFERRED|NOPASS|SAVE)', re.I)
+KEYWORD_REGEX = re.compile(r'(PUBLIC|PRIVATE|ALLOCATABLE|POINTER|TARGET|DIMENSION|OPTIONAL|INTENT|DEFERRED|NOPASS|SAVE|PARAMETER)', re.I)
 VIS_REGEX = re.compile(r'(PUBLIC|PRIVATE)', re.I)
 WORD_REGEX = re.compile(r'[a-z][a-z0-9_]*', re.I)
 LINK_REGEX = re.compile(r'([a-z][a-z0-9_]*[ \t]*)=>([ \t]*[a-z][a-z0-9_]*)', re.I)
@@ -175,12 +176,14 @@ class fortran_subroutine(fortran_scope):
         return 'SUBROUTINE'
 #
 class fortran_function(fortran_scope):
-    def __init__(self, line_number, name, enc_scope=None, args=None):
+    def __init__(self, line_number, name, enc_scope=None, args=None, return_type=None, result_var=None):
         self.sline = line_number
         self.eline = None
         self.name = name.lower()
         self.children = []
         self.use = []
+        self.return_type = return_type
+        self.result_var = result_var
         self.parent = None
         self.vis = 0
         self.args = args
@@ -191,6 +194,14 @@ class fortran_function(fortran_scope):
     def get_type(self):
         return 'function'
     def get_desc(self):
+        desc = None
+        if self.result_var is not None:
+            result_var_lower = self.result_var.lower()
+            for child in self.children:
+                if child.name == result_var_lower:
+                    return child.get_desc()
+        if self.return_type is not None:
+            return self.return_type
         return 'FUNCTION'
 #
 class fortran_type(fortran_scope):
@@ -291,6 +302,7 @@ class fortran_obj:
 def parse_subroutine_def(test_str):
     name = None
     args = None
+    return_var = None
     paren_count = 0
     i=0
     n = len(test_str)
@@ -299,6 +311,10 @@ def parse_subroutine_def(test_str):
     word_match = WORD_REGEX.findall(test_str)
     for word in word_match:
         if word == '':
+            continue
+        if word.lower() == 'function':
+            continue
+        if word.lower() == 'subroutine':
             continue
         key_match = KEYWORD_REGEX.match(word)
         if key_match is None:
@@ -312,8 +328,14 @@ def parse_subroutine_def(test_str):
             if word_match is not None:
                 word_match = [word.lower() for word in word_match]
                 args = ','.join(word_match)
+            trailing_line = trailing_line[paren_match.end(0):]
+        #
+        trailing_line = trailing_line.strip()
+        results_match = RESULT_REGEX.match(trailing_line)
+        if results_match is not None:
+            return_var = results_match.group(2).strip()
     #
-    return name, args
+    return name, args, return_var
 #
 def parse_type_def(test_str):
     name = None
@@ -342,16 +364,15 @@ def parse_var_def(test_str, scope_word):
         test_str = test_str[kind_match.end(0):]
     #
     test_str = test_str.split('!')[0]
-    test_str = test_str.replace(',',' ')
-    line_split = test_str[:-1].split(' ')
     modifiers = []
     var_words = []
-    for (i,word) in enumerate(line_split):
-        if word == '':
+    skip_next = False
+    word_matches = WORD_REGEX.finditer(test_str)
+    for (i,word_match) in enumerate(word_matches):
+        if skip_next:
+            skip_next = False
             continue
-        if word == '::':
-            var_words = line_split[i+1:]
-            break
+        word = word_match.group(0)
         key_match = KEYWORD_REGEX.match(word)
         if key_match is not None:
             key_lower = key_match.group(0).lower()
@@ -367,10 +388,14 @@ def parse_var_def(test_str, scope_word):
                 modifiers.append(5)
             elif key_lower == 'nopass':
                 modifiers.append(6)
+            elif key_lower == 'intent':
+                skip_next = True
             #elif key_lower == 'dimension':
             # Handle this info
         else:
-            var_words = line_split[i:]
+            test_str = test_str[word_match.start(0):]
+            test_str = test_str.replace(',',' ')
+            var_words = test_str[:-1].split(' ')
             break
     if len(var_words)==0:
         return None, None, None, None
@@ -388,7 +413,7 @@ def parse_var_def(test_str, scope_word):
     var_names = []
     skip_next = False
     for word in var_words:
-        if word == '=':
+        if word == '=' or word == '=>':
             skip_next = True
             continue
         if skip_next:
@@ -643,10 +668,9 @@ while(not at_eof):
         trailing_line = line[match.end(0):]
         fun_match = FUN_REGEX.match(trailing_line)
         if fun_match is not None: # Actually function def
-            trailing_line = trailing_line[fun_match.end(0):]
-            name, args = parse_subroutine_def(trailing_line)
+            name, args, results = parse_subroutine_def(trailing_line)
             if name is not None:
-                new_sub = fortran_function(line_number, name, file_obj.enc_scope_name, args)
+                new_sub = fortran_function(line_number, name, file_obj.enc_scope_name, args, return_type=scope_word.upper())
                 file_obj.add_scope(new_sub, END_FUN_REGEX)
                 if(debug):
                     print 'Found function start, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
@@ -683,7 +707,7 @@ while(not at_eof):
     match = SUB_REGEX.match(line)
     if (match is not None):
         trailing_line = line[match.end(0):]
-        name, args = parse_subroutine_def(trailing_line)
+        name, args, results = parse_subroutine_def(trailing_line)
         if name is not None:
             new_sub = fortran_subroutine(line_number, name, file_obj.enc_scope_name, args)
             file_obj.add_scope(new_sub, END_SUB_REGEX)
@@ -694,9 +718,9 @@ while(not at_eof):
     match = FUN_REGEX.match(line)
     if (match is not None):
         trailing_line = line[match.end(0):]
-        name, args = parse_subroutine_def(trailing_line)
+        name, args, results = parse_subroutine_def(trailing_line)
         if name is not None:
-            new_sub = fortran_function(line_number, name, file_obj.enc_scope_name, args)
+            new_sub = fortran_function(line_number, name, file_obj.enc_scope_name, args, result_var=results)
             file_obj.add_scope(new_sub, END_FUN_REGEX)
         if(debug):
             print 'Found function start, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
