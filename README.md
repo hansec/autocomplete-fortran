@@ -18,7 +18,8 @@ Additionally, you must have [Python](https://www.python.org/) installed on your 
 ## Features
  * Provides suggestions across imported modules
  * Handles suggestions within user-defined types even when nested
- * Provides argument list for subroutine and function calls
+ * Provides argument list for subroutine and function calls (optional arguments are indicated)
+ * Provides return type for function calls
  * "Go To Declaration" support for FORTRAN object (including fields in user-defined types)
 
 ## Usage
@@ -49,6 +50,5 @@ The FORTRAN parser is written in Python so a Python implementation is required t
 
 ## TODOs and current limitations
  * Inherited fields do not automatically update if fields are added/removed from a parent type
- * Provide POINTER/ALLOCATABLE information
- * Provide return type for functions
- * Indicate optional arguments
+ * Provide dimension information
+ * Handle explicit PASS statement for type bound procedures
