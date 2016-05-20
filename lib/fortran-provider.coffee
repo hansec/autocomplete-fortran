@@ -177,9 +177,11 @@ class FortranProvider
       cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
       if cursorScope?
         return @addChildren(cursorScope, completions, prefixLower, [])
-      lineContext = @getLineContext(editor, bufferPosition)
+      useSuggestions = @getUseSuggestion(editor, bufferPosition, prefixLower)
+      if useSuggestions?
+        return useSuggestions
       for key in @globalObjInd when (@projectObjList[key]['name'].startsWith(prefixLower))
-        if @projectObjList[key]['type'] == 'module' and lineContext != 1
+        if @projectObjList[key]['type'] == 'module'
           continue
         completions.push(@buildCompletion(@projectObjList[key]))
       #
@@ -188,10 +190,7 @@ class FortranProvider
         completions = @addChildren(lineScope, completions, prefixLower, [])
         usedMod = @getUseSearches(lineScope, usedMod, [])
       for useMod of usedMod
-        if lineContext == 1
-          completions = @addPublicChildren(useMod, completions, prefixLower, [])
-        else
-          completions = @addPublicChildren(useMod, completions, prefixLower, usedMod[useMod])
+        completions = @addPublicChildren(useMod, completions, prefixLower, usedMod[useMod])
     else
       lineScopes = @getLineScopes(editor, bufferPosition)
       cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
@@ -222,7 +221,6 @@ class FortranProvider
     if @globalObjInd.indexOf(wordLower) != -1
       return @getDefLoc(@projectObjList[wordLower])
     # Look in local scopes
-    lineContext = @getLineContext(editor, bufferPosition)
     for lineScope in lineScopes
       containingScope = @findInScope(lineScope, wordLower)
       if containingScope?
@@ -241,12 +239,33 @@ class FortranProvider
       return @modFiles[fileRef]+":"+lineRef.toString()
     return null
 
-  getLineContext: (editor, bufferPosition) ->
-    useRegex = /^[ \t]*use/i
+  getUseSuggestion: (editor, bufferPosition, prefixLower) ->
+    useRegex = /^[ \t]*use[ \t]+/i
+    wordRegex = /[a-z0-9_]+/gi
+    suggestions = []
     line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
     if line.match(useRegex)?
-      return 1 # In use declaration
-    return 0 # Unknown enable everything!!!!
+      unless prefixLower.match(wordRegex)?
+        prefixLower = ""
+      matches = line.match(wordRegex)
+      if matches.length == 2
+        if prefixLower?
+          for key in @globalObjInd when (@projectObjList[key]['name'].startsWith(prefixLower))
+            if @projectObjList[key]['type'] != 'module'
+              continue
+            suggestions.push(@buildCompletion(@projectObjList[key]))
+        else
+          for key in @globalObjInd
+            suggestions.push(@buildCompletion(@projectObjList[key]))
+        return suggestions
+      else
+        modName = matches[1]
+        suggestions = @addPublicChildren(modName, suggestions, prefixLower, [])
+        for suggestion in suggestions
+          if 'snippet' of suggestion
+            suggestion.snippet = suggestion.snippet.split('(')[0]
+        return suggestions
+    return null # Unknown enable everything!!!!
 
   getLineScopes: (editor, bufferPosition) ->
     filePath = editor.getPath()
