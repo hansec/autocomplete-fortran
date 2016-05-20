@@ -5,7 +5,7 @@ path = require('path')
 module.exports =
 class FortranProvider
   selector: '.source.fortran'
-  disableForSelector: '.source.fortran .comment'
+  disableForSelector: '.source.fortran .comment, .source.fortran .string.quoted'
   inclusionPriority: 1
   suggestionPriority: 2
 
