@@ -529,10 +529,13 @@ class fortran_file:
                 self.current_scope.add_use(mod_words[0], use_list)
             else:
                 self.current_scope.add_use(mod_words[0])
-    def dump_json(self):
-        if len(self.scope_stack) > 0:
+    def dump_json(self, line_count, close_open=False):
+        if len(self.scope_stack) > 0 and not close_open:
             print json.dumps({'error': 'Scope stack not empty'}, indent=self.indent_level)
             return
+        if close_open:
+            while (len(self.scope_stack) > 0):
+                self.end_scope(line_count)
         js_output = {'objs': {}, 'scopes': []}
         for scope in self.scope_list:
             js_output['objs'][scope.FQSN] = scope.write_scope()
@@ -823,4 +826,7 @@ while(not at_eof):
         continue
 f.close()
 #
-file_obj.dump_json()
+close_open_scopes = False
+if options.std:
+    close_open_scopes = True
+file_obj.dump_json(line_number,close_open_scopes)
