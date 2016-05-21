@@ -697,7 +697,8 @@ while(not at_eof):
             if(debug):
                 print 'Found scope end, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
             continue
-        match = END_GEN_REGEX.match(line)
+        line_no_comment = line.split('!')[0]
+        match = END_GEN_REGEX.match(line_no_comment)
         if (match is not None):
             file_obj.end_scope(line_number)
             if(debug):
