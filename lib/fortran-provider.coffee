@@ -144,6 +144,9 @@ class FortranProvider
       return
     #
     fileRef = @modFiles.indexOf(filePath)
+    if fileRef == -1
+      @modFiles.push(filePath)
+      fileRef = @modFiles.indexOf(filePath)
     for key of fileAST['objs']
       @projectObjList[key] = fileAST['objs'][key]
       @projectObjList[key]['file'] = fileRef
