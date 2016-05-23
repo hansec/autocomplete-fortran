@@ -11,8 +11,11 @@ class FortranProvider
 
   pythonPath: ''
   parserPath: ''
+  minPrefix: 2
   firstRun: true
   indexReady: false
+  lastFile: ''
+  lastRow: -1
 
   fileObjInd: { }
   globalObjInd: []
@@ -26,6 +29,7 @@ class FortranProvider
   constructor: () ->
     @pythonPath = atom.config.get('autocomplete-fortran.pythonPath')
     @parserPath = path.join(__dirname, "..", "python", "parse_fortran.py")
+    @minPrefix = atom.config.get('autocomplete-fortran.minPrefix')
 
   rebuildIndex: () ->
     # Reset index
@@ -165,21 +169,37 @@ class FortranProvider
     if @firstRun
       @rebuildIndex()
       @firstRun = false
-    # Get suggestions
-    @localUpdate(editor, bufferPosition.row).then () =>
-        @filterSuggestions(prefix, editor, bufferPosition)
+    return new Promise (resolve) =>
+      # Check if update requred
+      parseBuffer = false
+      if @lastFile != editor.getPath()
+        parseBuffer = true
+        @lastFile = editor.getPath()
+      if @lastRow != bufferPosition.row
+        parseBuffer = true
+        @lastRow = bufferPosition.row
+      # Get suggestions
+      if parseBuffer
+        @localUpdate(editor, bufferPosition.row).then () =>
+          resolve(@filterSuggestions(prefix, editor, bufferPosition))
+      else
+        resolve(@filterSuggestions(prefix, editor, bufferPosition))
 
   filterSuggestions: (prefix, editor, bufferPosition) ->
     completions = []
     if prefix
       prefixLower = prefix.toLowerCase()
+      lineContext = @getLineContext(editor, bufferPosition)
+      if lineContext == 2
+        return completions
+      if lineContext == 1
+        return @getUseSuggestion(editor, bufferPosition, prefixLower)
       lineScopes = @getLineScopes(editor, bufferPosition)
       cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
       if cursorScope?
         return @addChildren(cursorScope, completions, prefixLower, [])
-      useSuggestions = @getUseSuggestion(editor, bufferPosition, prefixLower)
-      if useSuggestions?
-        return useSuggestions
+      if prefix.length < @minPrefix
+        return completions
       for key in @globalObjInd when (@projectObjList[key]['name'].startsWith(prefixLower))
         if @projectObjList[key]['type'] == 'module'
           continue
@@ -192,6 +212,9 @@ class FortranProvider
       for useMod of usedMod
         completions = @addPublicChildren(useMod, completions, prefixLower, usedMod[useMod])
     else
+      line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
+      unless line.endsWith('%')
+        return completions
       lineScopes = @getLineScopes(editor, bufferPosition)
       cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
       if cursorScope?
@@ -258,14 +281,24 @@ class FortranProvider
           for key in @globalObjInd
             suggestions.push(@buildCompletion(@projectObjList[key]))
         return suggestions
-      else
+      else if matches.length > 2
         modName = matches[1]
         suggestions = @addPublicChildren(modName, suggestions, prefixLower, [])
         for suggestion in suggestions
           if 'snippet' of suggestion
             suggestion.snippet = suggestion.snippet.split('(')[0]
         return suggestions
-    return null # Unknown enable everything!!!!
+    return suggestions # Unknown enable everything!!!!
+
+  getLineContext: (editor, bufferPosition) ->
+    useRegex = /^[ \t]*USE[ \t]/i
+    subDefRegex = /^[ \t]*(PURE|ELEMENTAL|RECURSIVE)*[ \t]*(MODULE|PROGRAM|SUBROUTINE|FUNCTION)[ \t]/i
+    line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
+    if line.match(useRegex)?
+      return 1
+    if line.match(useRegex)?
+      return 2
+    return 0
 
   getLineScopes: (editor, bufferPosition) ->
     filePath = editor.getPath()

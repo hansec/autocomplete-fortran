@@ -7,7 +7,13 @@ module.exports =
       default: '/usr/bin/python'
       order: 1
       title: 'Python Executable Path'
-      description: '''Optional path to python executable.'''
+      description: "Optional path to python executable."
+    minPrefix:
+      type: 'integer'
+      default: 2
+      order: 2
+      title: 'Minimum word length'
+      description: "Only autocomplete when you have typed at least this many characters. Note: autocomplete is always active for user-defined type fields"
   provider: null
 
   activate: ->
