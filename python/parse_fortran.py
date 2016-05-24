@@ -22,29 +22,28 @@ parser.add_option("--file", dest="file", default=None,
 debug = options.debug
 fixed_format = options.fixed
 #
-USE_REGEX = re.compile(r'([ \t]*USE )', re.I)
-SUB_REGEX = re.compile(r'([ \t]*(PURE|ELEMENTAL|RECURSIVE)?[ \t]*(SUBROUTINE))', re.I)
-END_SUB_REGEX = re.compile(r'([ \t]*(END)[ \t]*(SUBROUTINE))', re.I)
-FUN_REGEX = re.compile(r'([ \t]*(PURE|ELEMENTAL|RECURSIVE)?[ \t]*(FUNCTION))', re.I)
-RESULT_REGEX = re.compile(r'(RESULT[ ]*\(([a-z0-9_]*)\))', re.I)
-END_FUN_REGEX = re.compile(r'([ \t]*(END)[ \t]*(FUNCTION))', re.I)
-MOD_REGEX = re.compile(r'([ \t]*(MODULE))', re.I)
-END_MOD_REGEX = re.compile(r'([ \t]*(END)[ \t]*(MODULE))', re.I)
-PROG_REGEX = re.compile(r'([ \t]*(PROGRAM))', re.I)
-END_PROG_REGEX = re.compile(r'([ \t]*(END)[ \t]*(PROGRAM))', re.I)
-INT_REGEX = re.compile(r'([ \t]*(INTERFACE))', re.I)
-END_INT_REGEX = re.compile(r'([ \t]*(END)[ \t]*(INTERFACE))', re.I)
-END_GEN_REGEX = re.compile(r'([ \t]*(END)[ ]*)$', re.I)
-TYPE_DEF_REGEX = re.compile(r'([ \t]*(TYPE)[ \t,])', re.I)
-EXTENDS_REGEX = re.compile(r'EXTENDS[ ]*\([a-z0-9_]*\)', re.I)
-END_TYPED_REGEX = re.compile(r'([ \t]*(END)[ \t]*(TYPE))', re.I)
-INT_PRO_REGEX = re.compile(r'([ \t]*(MODULE[ \t]*PROCEDURE))', re.I)
-NAT_VAR_DEF_REGEX = re.compile(r'([ \t]*(INTEGER|REAL|DOUBLE PRECISION|COMPLEX|CHARACTER|LOGICAL|PROCEDURE)([ \t]*\([a-z0-9_ =*]*\)|[, ]))', re.I)
-UD_VAR_DEF_REGEX = re.compile(r'([ \t]*(CLASS[ ]*\(|TYPE[ ]*\(|PROCEDURE[ ]*\())', re.I)
-KEYWORD_REGEX = re.compile(r'(PUBLIC|PRIVATE|ALLOCATABLE|POINTER|TARGET|DIMENSION|OPTIONAL|INTENT|DEFERRED|NOPASS|SAVE|PARAMETER)', re.I)
+USE_REGEX = re.compile(r'[ \t]*USE[ \t]*([a-z0-9_]*)', re.I)
+SUB_REGEX = re.compile(r'[ \t]*(PURE|ELEMENTAL|RECURSIVE)*[ \t]*(SUBROUTINE)', re.I)
+END_SUB_REGEX = re.compile(r'[ \t]*END[ \t]*SUBROUTINE', re.I)
+FUN_REGEX = re.compile(r'[ \t]*(PURE|ELEMENTAL|RECURSIVE)*[ \t]*(FUNCTION)', re.I)
+RESULT_REGEX = re.compile(r'RESULT[ ]*\(([a-z0-9_]*)\)', re.I)
+END_FUN_REGEX = re.compile(r'[ \t]*END[ \t]*FUNCTION', re.I)
+MOD_REGEX = re.compile(r'[ \t]*MODULE[ \t]*([a-z0-9_]*)', re.I)
+END_MOD_REGEX = re.compile(r'[ \t]*END[ \t]*MODULE', re.I)
+PROG_REGEX = re.compile(r'[ \t]*PROGRAM[ \t]*([a-z0-9_]*)', re.I)
+END_PROG_REGEX = re.compile(r'[ \t]*END[ \t]*PROGRAM', re.I)
+INT_REGEX = re.compile(r'[ \t]*(?:ABSTRACT)?[ \t]*INTERFACE[ \t]*([a-z0-9_]*)', re.I)
+END_INT_REGEX = re.compile(r'[ \t]*END[ \t]*INTERFACE', re.I)
+END_GEN_REGEX = re.compile(r'[ \t]*END[ \t]*$', re.I)
+TYPE_DEF_REGEX = re.compile(r'[ \t]*TYPE', re.I)
+EXTENDS_REGEX = re.compile(r'EXTENDS[ ]*\(([a-z0-9_]*)\)', re.I)
+END_TYPED_REGEX = re.compile(r'[ \t]*END[ \t]*TYPE', re.I)
+NAT_VAR_REGEX = re.compile(r'[ \t]*(INTEGER|REAL|DOUBLE PRECISION|COMPLEX|CHARACTER|LOGICAL|PROCEDURE|CLASS|TYPE)', re.I)
+KIND_SPEC_REGEX = re.compile(r'([ \t]*\([a-z0-9_ =*]*\)|\*[0-9]*)', re.I)
+KEYWORD_LIST_REGEX = re.compile(r'[ \t]*,[ \t]*(PUBLIC|PRIVATE|ALLOCATABLE|POINTER|TARGET|DIMENSION\([a-z0-9_:, ]*\)|OPTIONAL|INTENT\([inout]*\)|DEFERRED|NOPASS|SAVE|PARAMETER)', re.I)
+TATTR_LIST_REGEX = re.compile(r'[ \t]*,[ \t]*(PUBLIC|PRIVATE|ABSTRACT|EXTENDS\([a-z0-9_]*\))', re.I)
 VIS_REGEX = re.compile(r'(PUBLIC|PRIVATE)', re.I)
 WORD_REGEX = re.compile(r'[a-z][a-z0-9_]*', re.I)
-LINK_REGEX = re.compile(r'([a-z][a-z0-9_]*[ \t]*)=>([ \t]*[a-z][a-z0-9_]*)', re.I)
 SUB_PAREN_MATCH = re.compile(r'\([a-z0-9_, ]*\)', re.I)
 KIND_SPEC_MATCH = re.compile(r'\([a-z0-9_, =*]*\)', re.I)
 #
@@ -54,6 +53,235 @@ if fixed_format:
 else:
     COMMENT_LINE_MATCH = re.compile(r'([ \t]*!)')
     CONT_REGEX = re.compile(r'([ \t]*&)')
+#
+def separate_def_list(test_str):
+    paren_count=0
+    def_list = []
+    curr_str = ''
+    for char in test_str:
+        if char == '(':
+            paren_count += 1
+        elif char == ')':
+            paren_count -= 1
+        elif char == ',' and paren_count==0:
+            if curr_str != '':
+                def_list.append(curr_str)
+                curr_str = ''
+            continue
+        curr_str += char
+    if curr_str != '':
+        def_list.append(curr_str)
+    return def_list
+#
+def parse_keywords(keywords):
+    modifiers = []
+    for key in keywords:
+        key_lower = key.lower()
+        if key_lower == 'pointer':
+            modifiers.append(1)
+        elif key_lower == 'allocatable':
+            modifiers.append(2)
+        elif key_lower == 'optional':
+            modifiers.append(3)
+        elif key_lower == 'public':
+            modifiers.append(4)
+        elif key_lower == 'private':
+            modifiers.append(5)
+        elif key_lower == 'nopass':
+            modifiers.append(6)
+    return modifiers
+#
+def read_var_def(line, type_word=None):
+    if type_word is None:
+        type_match = NAT_VAR_REGEX.match(line)
+        if type_match is None:
+            return None
+        else:
+            type_word = type_match.group(0).strip()
+            trailing_line = line[type_match.end(0):]
+    else:
+        trailing_line = line[len(type_word):]
+    type_word = type_word.upper()
+    trailing_line = trailing_line.split('!')[0]
+    #
+    kind_match = KIND_SPEC_REGEX.match(trailing_line)
+    if kind_match is not None:
+        type_word += kind_match.group(0).strip().lower()
+        trailing_line = trailing_line[kind_match.end(0):]
+    else:
+        # Class and Type statements need a kind spec
+        if type_word.lower() == 'class' or type_word.lower() == 'type':
+            return None
+        # Make sure next character is space or comma
+        if trailing_line[0] != ' ' and trailing_line[0] != ',':
+            return None
+    #
+    keyword_match = KEYWORD_LIST_REGEX.match(trailing_line)
+    keywords = []
+    while (keyword_match is not None):
+        keywords.append(keyword_match.group(0).replace(',',' ').strip().upper())
+        trailing_line = trailing_line[keyword_match.end(0):]
+        keyword_match = KEYWORD_LIST_REGEX.match(trailing_line)
+    # Check if function
+    fun_def = read_fun_def(trailing_line, [type_word, keywords])
+    if fun_def is not None:
+        return fun_def
+    #
+    line_split = trailing_line.split('::')
+    if len(line_split) == 1:
+        if len(keywords) > 0:
+            return None
+        else:
+            trailing_line = line_split[0]
+    else:
+        trailing_line = line_split[1]
+    #
+    var_words = separate_def_list(trailing_line.strip())
+    #
+    return 'var', [type_word, keywords, var_words]
+#
+def read_fun_def(line, return_type=None):
+    fun_match = FUN_REGEX.match(line)
+    if fun_match is None:
+        return None
+    #
+    trailing_line = line[fun_match.end(0):].strip()
+    trailing_line = trailing_line.split('!')[0]
+    name_match = WORD_REGEX.match(trailing_line)
+    if name_match is not None:
+        name = name_match.group(0)
+        trailing_line = trailing_line[name_match.end(0):].strip()
+    else:
+        return None
+    #
+    paren_match = SUB_PAREN_MATCH.match(trailing_line)
+    if paren_match is not None:
+        word_match = WORD_REGEX.findall(paren_match.group(0))
+        if word_match is not None:
+            word_match = [word.lower() for word in word_match]
+            args = ','.join(word_match)
+        trailing_line = trailing_line[paren_match.end(0):]
+    #
+    return_var = None
+    if return_type is None:
+        trailing_line = trailing_line.strip()
+        results_match = RESULT_REGEX.match(trailing_line)
+        if results_match is not None:
+            return_var = results_match.group(1).strip().lower()
+    return 'fun', [name, args, [return_type, return_var]]
+#
+def read_sub_def(line):
+    sub_match = SUB_REGEX.match(line)
+    if sub_match is None:
+        return None
+    #
+    trailing_line = line[sub_match.end(0):].strip()
+    trailing_line = trailing_line.split('!')[0]
+    name_match = WORD_REGEX.match(trailing_line)
+    if name_match is not None:
+        name = name_match.group(0)
+        trailing_line = trailing_line[name_match.end(0):].strip()
+    else:
+        return None
+    #
+    paren_match = SUB_PAREN_MATCH.match(trailing_line)
+    args = ''
+    if paren_match is not None:
+        word_match = WORD_REGEX.findall(paren_match.group(0))
+        if word_match is not None:
+            word_match = [word.lower() for word in word_match]
+            args = ','.join(word_match)
+        trailing_line = trailing_line[paren_match.end(0):]
+    return 'sub', [name, args]
+#
+def read_type_def(line):
+    type_match = TYPE_DEF_REGEX.match(line)
+    if type_match is None:
+        return None
+    trailing_line = line[type_match.end(0):]
+    trailing_line = trailing_line.split('!')[0]
+    # Parse keywords
+    keyword_match = TATTR_LIST_REGEX.match(trailing_line)
+    keywords = []
+    parent = None
+    while (keyword_match is not None):
+        keyword_strip = keyword_match.group(0).replace(',',' ').strip().upper()
+        extend_match = EXTENDS_REGEX.match(keyword_strip)
+        if extend_match is not None:
+            parent = extend_match.group(1).lower()
+        else:
+            keywords.append(keyword_strip)
+        #
+        trailing_line = trailing_line[keyword_match.end(0):]
+        keyword_match = TATTR_LIST_REGEX.match(trailing_line)
+    # Get name
+    line_split = trailing_line.split('::')
+    if len(line_split) == 1:
+        if len(keywords) > 0 and parent is None:
+            return None
+        else:
+            if trailing_line.split('(')[0].strip().lower() == 'is':
+                return None
+            trailing_line = line_split[0]
+    else:
+        trailing_line = line_split[1]
+    #
+    word_match = WORD_REGEX.match(trailing_line.strip())
+    if word_match is not None:
+        name = word_match.group(0)
+    else:
+        return None
+    #
+    return 'typ', [name, parent, keywords]
+#
+def read_mod_def(line):
+    mod_match = MOD_REGEX.match(line)
+    if mod_match is None:
+        return None
+    else:
+        name = mod_match.group(1)
+        if name.lower() == 'procedure':
+            trailing_line = line[mod_match.end(1):]
+            pro_names = []
+            line_split = trailing_line.split(',')
+            for name in line_split:
+                pro_names.append(name.strip().lower())
+            return 'int_pro', pro_names
+        return 'mod', name
+#
+def read_prog_def(line):
+    prog_match = PROG_REGEX.match(line)
+    if prog_match is None:
+        return None
+    else:
+        return 'prog', prog_match.group(1)
+#
+def read_int_def(line):
+    int_match = INT_REGEX.match(line)
+    if int_match is None:
+        return None
+    else:
+        int_name = int_match.group(1).lower()
+        if int_name == '':
+            return None
+        if int_name == 'assignment' or int_name == 'operator':
+            return None
+        return 'int', int_match.group(1)
+#
+def read_use_stmt(line):
+    use_match = USE_REGEX.match(line)
+    if use_match is None:
+        return None
+    else:
+        trailing_line = line[use_match.end(0):].lower()
+        use_mod = use_match.group(1)
+        only_ind = trailing_line.find('only:')
+        only_list = []
+        if only_ind > -1:
+            only_split = trailing_line[only_ind+5:].split(',')
+            for only_stmt in only_split:
+                only_list.append(only_stmt.split('=>')[0].strip())
+        return 'use', [use_mod, only_list]
 #
 class fortran_scope:
     def __init__(self, line_number, name, enc_scope=None, args=None):
@@ -205,12 +433,13 @@ class fortran_function(fortran_scope):
         return 'FUNCTION'
 #
 class fortran_type(fortran_scope):
-    def __init__(self, line_number, name, enc_scope=None, args=None):
+    def __init__(self, line_number, name, modifiers, enc_scope=None, args=None):
         self.sline = line_number
         self.eline = None
         self.name = name.lower()
         self.children = []
         self.use = []
+        self.modifiers = modifiers
         self.parent = None
         self.vis = 0
         self.args = args
@@ -218,6 +447,11 @@ class fortran_type(fortran_scope):
             self.FQSN = enc_scope.lower() + "::" + self.name
         else:
             self.FQSN = self.name
+        for modifier in self.modifiers:
+            if modifier == 4:
+                self.vis = 1
+            elif modifier == 5:
+                self.vis = -1
     def get_type(self):
         return 'class'
     def get_desc(self):
@@ -298,174 +532,6 @@ class fortran_obj:
         if len(self.modifiers) > 0:
             scope_dict['mods'] = self.modifiers
         return scope_dict
-#
-def parse_subroutine_def(test_str):
-    name = None
-    args = None
-    return_var = None
-    paren_count = 0
-    i=0
-    n = len(test_str)
-    found_name = False
-    #
-    word_match = WORD_REGEX.findall(test_str)
-    for word in word_match:
-        if word == '':
-            continue
-        if word.lower() == 'function':
-            continue
-        if word.lower() == 'subroutine':
-            continue
-        key_match = KEYWORD_REGEX.match(word)
-        if key_match is None:
-            name = word
-            break
-    if name is not None:
-        trailing_line = test_str.split(name)[1].strip()
-        paren_match = SUB_PAREN_MATCH.match(trailing_line)
-        if paren_match is not None:
-            word_match = WORD_REGEX.findall(paren_match.group(0))
-            if word_match is not None:
-                word_match = [word.lower() for word in word_match]
-                args = ','.join(word_match)
-            trailing_line = trailing_line[paren_match.end(0):]
-        #
-        trailing_line = trailing_line.strip()
-        results_match = RESULT_REGEX.match(trailing_line)
-        if results_match is not None:
-            return_var = results_match.group(2).strip()
-    #
-    return name, args, return_var
-#
-def parse_type_def(test_str):
-    name = None
-    parent = None
-    # Get name
-    test_split = test_str.split('::')
-    if(len(test_split)>1):
-        word_match = WORD_REGEX.findall(test_split[1])
-        if len(word_match)>0:
-            name = word_match[0]
-    # Look for parent
-    ext_match = EXTENDS_REGEX.findall(test_split[0])
-    if len(ext_match)>0:
-        i1 = ext_match[0].find('(')
-        i2 = ext_match[0].find(')')
-        if i1>=0 and i2>=0:
-            parent = ext_match[0][i1+1:i2]
-    #
-    return name, parent
-#
-def parse_var_def(test_str, scope_word):
-    # Parse variable def
-    kind_match = KIND_SPEC_MATCH.match(test_str)
-    if kind_match is not None:
-        scope_word += kind_match.group(0).strip()
-        test_str = test_str[kind_match.end(0):]
-    #
-    test_str = test_str.split('!')[0]
-    modifiers = []
-    var_words = []
-    skip_next = False
-    word_matches = WORD_REGEX.finditer(test_str)
-    for (i,word_match) in enumerate(word_matches):
-        if skip_next:
-            skip_next = False
-            continue
-        word = word_match.group(0)
-        key_match = KEYWORD_REGEX.match(word)
-        if key_match is not None:
-            key_lower = key_match.group(0).lower()
-            if key_lower == 'pointer':
-                modifiers.append(1)
-            elif key_lower == 'allocatable':
-                modifiers.append(2)
-            elif key_lower == 'optional':
-                modifiers.append(3)
-            elif key_lower == 'public':
-                modifiers.append(4)
-            elif key_lower == 'private':
-                modifiers.append(5)
-            elif key_lower == 'nopass':
-                modifiers.append(6)
-            elif key_lower == 'intent':
-                skip_next = True
-            #elif key_lower == 'dimension':
-            # Handle this info
-        else:
-            test_str = test_str[word_match.start(0):]
-            test_str = test_str.replace(',',' ')
-            var_words = test_str[:-1].split(' ')
-            break
-    if len(var_words)==0:
-        return None, None, None, None
-    # Look for link
-    var_line = " ".join(var_words)
-    link_match = LINK_REGEX.match(var_line)
-    if link_match is not None:
-        var_key = link_match.group(1).strip()
-        parent_key = link_match.group(2).strip()
-        if parent_key.lower() != 'null':
-            return 1, scope_word, [], [var_key, parent_key]
-        else:
-            return 0, scope_word, modifiers, [var_key]
-    # Assemble variables
-    var_names = []
-    skip_next = False
-    for word in var_words:
-        if word == '=' or word == '=>':
-            skip_next = True
-            continue
-        if skip_next:
-            skip_next = False
-            continue
-        word_match = WORD_REGEX.match(word)
-        if word_match is not None:
-            var_names.append(word_match.group(0))
-    return 0, scope_word, modifiers, var_names
-#
-def get_first_nonkey(test_str):
-    word_match = WORD_REGEX.findall(test_str)
-    for word in word_match:
-        if word == '':
-            continue
-        key_match = KEYWORD_REGEX.match(word)
-        if key_match is None:
-            return word
-    return None
-#
-def get_all_vdefs(test_str):
-    words = []
-    paren_count = 0
-    in_assign = False
-    i=0
-    n = len(test_str)
-    while(True):
-        if i >= n:
-            break
-        if test_str[i] == '!':
-            break
-        if paren_count == 0 and (not in_assign):
-            str_match = WORD_REGEX.match(test_str[i:])
-            if str_match is not None:
-                if str_match.start(0) == 0:
-                    words.append(str_match.group(0))
-                    i+=str_match.end(0)
-                    continue
-            if test_str[i] == '=':
-                in_assign = True
-        #
-        if test_str[i] == '(':
-            paren_count += 1
-        elif test_str[i] == ')':
-            paren_count -= 1
-        #
-        if in_assign and paren_count == 0:
-            if test_str[i] == ',':
-                in_assign = False
-        i+=1
-    #
-    return words
 #
 class fortran_file:
     def __init__(self, indent_level=None):
@@ -549,17 +615,6 @@ class fortran_file:
             if public_obj in js_output['objs']:
                 js_output['objs'][public_obj]['vis'] = 1
         print json.dumps(js_output, indent=self.indent_level)
-
-#
-def read_visibility(def_str):
-    vis_match = VIS_REGEX.findall(def_str)
-    curr_vis = 0
-    if len(vis_match) > 0:
-        if vis_match[0].lower() == 'private':
-            curr_vis = -1
-        else:
-            curr_vis = 1
-    return curr_vis
 #
 if options.std:
     filename = 'STDIN'
@@ -568,6 +623,7 @@ else:
     filename = options.file
     f = open(filename)
 #
+def_tests = [read_var_def, read_sub_def, read_fun_def, read_type_def, read_use_stmt, read_int_def, read_mod_def, read_prog_def]
 indent_level = None
 if options.pretty:
     indent_level = 2
@@ -615,83 +671,12 @@ while(not at_eof):
             if cont_match is not None:
                 next_line = next_line[cont_match.end(0):]
             next_line_num += 1
-            line = split_line[0].rstrip() + next_line.strip()
+            line = split_line[0].rstrip() + ' ' + next_line.strip()
             iAmper = line.find('&')
             iComm = line.find('!')
             if iComm < 0:
                 iComm = iAmper + 1
         next_line = None
-    # Test for user-defined and procedure variables
-    match = UD_VAR_DEF_REGEX.match(line)
-    if (match is not None):
-        scope_word = match.group(0).strip()
-        first_char = scope_word[0].lower()
-        if first_char == 'p': # Procedure found
-            end_ind = line[match.end(0):].find(')')
-            scope_word = line[:end_ind+1+match.end(0)].strip()
-            if file_obj.current_scope is None:
-                continue # Skip if no enclosing scope (something is wrong!)
-            trailing_line = line[end_ind+1+match.end(0):]
-            vtype, scope_word, modifiers, var_names = parse_var_def(trailing_line, scope_word)
-            if vtype == 0:
-                i1 = scope_word.find('(')
-                i2 = scope_word.find(')')
-                link_name = None
-                if i1 > -1 and i2 > -1:
-                    link_name = scope_word[i1+1:i2]
-                for var_name in var_names:
-                    new_var = fortran_obj(line_number, var_name, scope_word.upper(), modifiers, file_obj.enc_scope_name, link_name)
-                    file_obj.add_variable(new_var)
-            elif vtype == 1:
-                new_var = fortran_obj(line_number, var_names[0], scope_word.upper(), modifiers, file_obj.enc_scope_name, var_names[1])
-                file_obj.add_variable(new_var)
-            if(debug):
-                print 'Found procedure, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-        else: # UD-Type found
-            end_ind = line[match.end(0):].find(')')
-            scope_word = line[:end_ind+1+match.end(0)].strip()
-            if file_obj.current_scope is None:
-                continue # Skip if no enclosing scope (something is wrong!)
-            trailing_line = line[end_ind+1+match.end(0):]
-            vtype, scope_word, modifiers, var_names = parse_var_def(trailing_line, scope_word)
-            if vtype == 0:
-                for var_name in var_names:
-                    new_var = fortran_obj(line_number, var_name, scope_word.upper(), modifiers, file_obj.enc_scope_name)
-                    file_obj.add_variable(new_var)
-            elif vtype == 1:
-                new_var = fortran_obj(line_number, var_names[0], scope_word.upper(), modifiers, file_obj.enc_scope_name, var_names[1])
-                file_obj.add_variable(new_var)
-            if(debug):
-                print 'Found UD-type variable, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-        continue
-    # Test for variable defs
-    match = NAT_VAR_DEF_REGEX.match(line)
-    if (match is not None):
-        scope_word = match.group(0).strip()
-        trailing_line = line[match.end(0):]
-        fun_match = FUN_REGEX.match(trailing_line)
-        if fun_match is not None: # Actually function def
-            name, args, results = parse_subroutine_def(trailing_line)
-            if name is not None:
-                new_sub = fortran_function(line_number, name, file_obj.enc_scope_name, args, return_type=scope_word.upper())
-                file_obj.add_scope(new_sub, END_FUN_REGEX)
-                if(debug):
-                    print 'Found function start, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-                continue
-        # Parse variable def
-        if file_obj.current_scope is None:
-            continue # Skip if no enclosing scope (something is wrong!)
-        vtype, scope_word, modifiers, var_names = parse_var_def(trailing_line, scope_word)
-        if vtype == 0:
-            for var_name in var_names:
-                new_var = fortran_obj(line_number, var_name, scope_word.upper(), modifiers, file_obj.enc_scope_name)
-                file_obj.add_variable(new_var)
-        elif vtype == 1:
-            new_var = fortran_obj(line_number, var_names[0], scope_word.upper(), modifiers, file_obj.enc_scope_name, var_names[1])
-            file_obj.add_variable(new_var)
-        if(debug):
-            print 'Found native variable, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-        continue
     # Test for scope end
     if file_obj.END_REGEX is not None:
         match = file_obj.END_REGEX.match(line)
@@ -707,110 +692,90 @@ while(not at_eof):
             if(debug):
                 print 'Found scope end, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
             continue
-    # Test for start of subroutine
-    match = SUB_REGEX.match(line)
-    if (match is not None):
-        trailing_line = line[match.end(0):]
-        name, args, results = parse_subroutine_def(trailing_line)
-        if name is not None:
-            new_sub = fortran_subroutine(line_number, name, file_obj.enc_scope_name, args)
+    # Loop through tests
+    obj_read = None
+    for test in def_tests:
+        obj_read = test(line)
+        if obj_read is not None:
+            break
+    #
+    if obj_read is not None:
+        obj_type = obj_read[0]
+        obj = obj_read[1]
+        if obj_type == 'var':
+            for var_name in obj[2]:
+                link_name = None
+                if obj[0][:3] == 'PRO':
+                    i1 = obj[0].find('(')
+                    i2 = obj[0].find(')')
+                    if i1 > -1 and i2 > -1:
+                        link_name = obj[0][i1+1:i2]
+                if var_name.find('=>') > -1:
+                    name_split = var_name.split('=>')
+                    name_stripped = name_split[0]
+                    link_name = name_split[1].split('(')[0].strip()
+                    if link_name.lower() == 'null':
+                        link_name = None
+                else:
+                    name_stripped = var_name.split('=')[0]
+                name_stripped = name_stripped.split('(')[0].strip()
+                modifiers = parse_keywords(obj[1])
+                new_var = fortran_obj(line_number, name_stripped, obj[0], modifiers, file_obj.enc_scope_name, link_name)
+                file_obj.add_variable(new_var)
+            if(debug):
+                print 'Found variable statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+        elif obj_type == 'mod':
+            new_mod = fortran_module(line_number, obj, file_obj.enc_scope_name)
+            file_obj.add_scope(new_mod, END_MOD_REGEX)
+            if(debug):
+                print 'Found module statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+        elif obj_type == 'prog':
+            new_prog = fortran_program(line_number, obj, file_obj.enc_scope_name)
+            file_obj.add_scope(new_prog, END_PROG_REGEX)
+            if(debug):
+                print 'Found program statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+        elif obj_type == 'sub':
+            new_sub = fortran_subroutine(line_number, obj[0], file_obj.enc_scope_name, obj[1])
             file_obj.add_scope(new_sub, END_SUB_REGEX)
-        if(debug):
-            print 'Found subroutine start, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-        continue
-    # Test for start of function
-    match = FUN_REGEX.match(line)
-    if (match is not None):
-        trailing_line = line[match.end(0):]
-        name, args, results = parse_subroutine_def(trailing_line)
-        if name is not None:
-            new_sub = fortran_function(line_number, name, file_obj.enc_scope_name, args, result_var=results)
-            file_obj.add_scope(new_sub, END_FUN_REGEX)
-        if(debug):
-            print 'Found function start, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-        continue
-    # Test for interface procedures
-    match = INT_PRO_REGEX.match(line)
-    if (match is not None):
-        trailing_line = line[match.end(0):]
-        first_key = get_first_nonkey(trailing_line)
-        if first_key is not None:
+            if(debug):
+                print 'Found subroutine statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+        elif obj_type == 'fun':
+            new_fun = fortran_function(line_number, obj[0], file_obj.enc_scope_name, obj[1], return_type=obj[2][0], result_var=obj[2][1])
+            file_obj.add_scope(new_fun, END_FUN_REGEX)
+            if(debug):
+                print 'Found function statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+        elif obj_type == 'typ':
+            modifiers = parse_keywords(obj[2])
+            new_type = fortran_type(line_number, obj[0], modifiers, file_obj.enc_scope_name)
+            if obj[1] is not None:
+                new_type.set_parent(obj[1])
+            file_obj.add_scope(new_type, END_TYPED_REGEX)
+            if(debug):
+                print 'Found type statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+        elif obj_type == 'int':
+            new_int = fortran_int(line_number, obj, file_obj.enc_scope_name)
+            file_obj.add_scope(new_int, END_INT_REGEX, True)
+            if(debug):
+                print 'Found INT statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+        elif obj_type == 'int_pro':
             if file_obj.current_scope is None:
                 continue
             if not isinstance(file_obj.current_scope,fortran_int):
                 continue
-            keys = get_all_vdefs(trailing_line.lower().replace('procedure',''))
-            if keys is not None:
-                for key in keys:
-                    file_obj.add_int_member(key)
+            for name in obj:
+                file_obj.add_int_member(name)
             if(debug):
-                print 'Found procedure link, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-            continue
-    # Test for start of Interface
-    match = INT_REGEX.match(line)
-    if (match is not None):
-        trailing_line = line[match.end(0):]
-        first_key = get_first_nonkey(trailing_line)
-        if first_key is not None: # Found named interface
-            if first_key.lower() == 'operator' or first_key.lower() == 'assignment':
-                continue
-            new_int = fortran_int(line_number, first_key, file_obj.enc_scope_name)
-            file_obj.add_scope(new_int, END_INT_REGEX, True)
-        if(debug):
-            print 'Found interface start, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-        continue
-    # Test for Type defs
-    match = TYPE_DEF_REGEX.match(line)
-    if (match is not None):
-        trailing_line = line[match.end(0):]
-        curr_vis = read_visibility(trailing_line)
-        name, parent = parse_type_def(trailing_line)
-        if name is not None:
-            new_type = fortran_type(line_number, name, file_obj.enc_scope_name)
-            new_type.set_visibility(curr_vis)
-            if parent is not None:
-                new_type.set_parent(parent)
-            file_obj.add_scope(new_type, END_TYPED_REGEX, True)
-        if(debug):
-            print 'Found type definition, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-        continue
-    # Test for start of Module
-    match = MOD_REGEX.match(line)
-    if (match is not None):
-        trailing_line = line[match.end(0):]
-        first_key = get_first_nonkey(trailing_line)
-        if first_key is not None:
-            new_mod = fortran_module(line_number, first_key, file_obj.enc_scope_name)
-            file_obj.add_scope(new_mod, END_MOD_REGEX)
-        if(debug):
-            print 'Found module start, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-        continue
-    # Test for start of Program
-    match = PROG_REGEX.match(line)
-    if (match is not None):
-        trailing_line = line[match.end(0):]
-        first_key = get_first_nonkey(trailing_line)
-        if first_key is not None:
-            new_mod = fortran_program(line_number, first_key, file_obj.enc_scope_name)
-            file_obj.add_scope(new_mod, END_PROG_REGEX)
-        if(debug):
-            print 'Found program start, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-        continue
-    # Test for USE statements
-    match = USE_REGEX.match(line)
-    if (match is not None):
-        trailing_line = line[match.end(0):]
-        mod_words = get_all_vdefs(trailing_line)
-        file_obj.add_use(mod_words)
-        if(debug):
-            print 'Found USE definition, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
-        continue
+                print 'Found INT-PRO statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+        elif obj_type == 'use':
+            file_obj.current_scope.add_use(obj[0], obj[1])
+            if(debug):
+                print 'Found USE statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
     # Look for visiblity statement
     match = VIS_REGEX.match(line)
     if (match is not None):
         match_lower = match.group(0).lower()
         trailing_line = line[match.end(0):]
-        mod_words = get_all_vdefs(trailing_line)
+        mod_words = WORD_REGEX.findall(trailing_line)
         if len(mod_words) == 0:
             if match_lower == 'private':
                 file_obj.current_scope.set_visibility(-1)
@@ -822,7 +787,7 @@ while(not at_eof):
                 for word in mod_words:
                     file_obj.add_public(word)
         if(debug):
-            print 'Found visiblity statement, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
+            print 'Found visiblity statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
         continue
 f.close()
 #
