@@ -165,7 +165,7 @@ class FortranProvider
     @fileIndexed[fileRef] = true
     #console.log 'Updated suggestions'
 
-  getSuggestions: ({editor, bufferPosition, prefix}) ->
+  getSuggestions: ({editor, bufferPosition, prefix, activatedManually}) ->
     unless @exclPaths.indexOf(editor.getPath()) == -1
       return []
     # Build index on first run
@@ -184,11 +184,11 @@ class FortranProvider
       # Get suggestions
       if parseBuffer
         @localUpdate(editor, bufferPosition.row).then () =>
-          resolve(@filterSuggestions(prefix, editor, bufferPosition))
+          resolve(@filterSuggestions(prefix, editor, bufferPosition, activatedManually))
       else
-        resolve(@filterSuggestions(prefix, editor, bufferPosition))
+        resolve(@filterSuggestions(prefix, editor, bufferPosition, activatedManually))
 
-  filterSuggestions: (prefix, editor, bufferPosition) ->
+  filterSuggestions: (prefix, editor, bufferPosition, activatedManually) ->
     completions = []
     if prefix
       prefixLower = prefix.toLowerCase()
@@ -201,7 +201,7 @@ class FortranProvider
       cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
       if cursorScope?
         return @addChildren(cursorScope, completions, prefixLower, [])
-      if prefix.length < @minPrefix
+      if prefix.length < @minPrefix and not activatedManually
         return completions
       for key in @globalObjInd when (@projectObjList[key]['name'].startsWith(prefixLower))
         if @projectObjList[key]['type'] == 'module'
