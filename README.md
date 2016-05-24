@@ -34,6 +34,8 @@ Suggestions should be presented automatically while typing. At anytime you can f
  * See TODO section.
 
 ## Configuration
+
+### Setup module search paths
 By default all files with the suffix `*.f`,`*.F`,`*.f90`, or `*.F90` in the base atom project directory are parsed
 and used for generating suggestions. Specific folders containing FORTRAN source files can be set for
 a given project by placing a JSON file (example below) named `.ac_fortran` in the base directory.
@@ -45,6 +47,10 @@ any nested sub directories must be explicitly listed.
       "mod_dirs": ["subdir1", "subdir2"],
       "excl_paths": ["subdir1/file_to_skip.F90"]
     }
+
+### Settings
+
+![AC FORTRAN settings](http://staff.washington.edu/hansec/ac_fortran_settings.png)
 
 The FORTRAN parser is written in Python so a Python implementation is required to use this package. The path to Python may be set in package settings.
 

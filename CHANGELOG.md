@@ -1,3 +1,17 @@
+## 0.4.0
+
+### Improvements
+* Add minimum word size before suggestions are provided
+* Add suggestion filtering for USE statements (restrict to modules and module members)
+* Disable suggestions in quoted strings
+* Reduce parsing frequency by preventing local buffer AST updates until edits on a line have completed
+* Refactor FORTRAN parser to improve accuracy/robustness
+
+## Fixes
+* Fix parsing errors when adding a scope to the current buffer (automatically close scopes when parsing buffer)
+* Fix bug in parsing when generic "END" statement was followed by a comment
+* Fix bug in "GoTo Declaration" when declaration is in current buffer which is not included in the parsing directories
+
 ## 0.3.0
 
 ### Improvements
