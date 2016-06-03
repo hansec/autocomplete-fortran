@@ -150,6 +150,8 @@ class FortranProvider
       @modFiles.push(filePath)
       fileRef = @modFiles.indexOf(filePath)
     for key of fileAST['objs']
+      if key of @projectObjList
+        @resetInherit(@projectObjList[key])
       @projectObjList[key] = fileAST['objs'][key]
       @projectObjList[key]['file'] = fileRef
       if 'desc' of @projectObjList[key]
@@ -550,6 +552,23 @@ class FortranProvider
     if resolvedScope?
       @projectObjList[objKey]['res_link'] = resolvedScope+"::"+linkKey
 
+  addChild: (scopeKey, childKey) ->
+    if 'chld' of @projectObjList[scopeKey]
+      @projectObjList[scopeKey]['chld'].push(childKey)
+    else
+      @projectObjList[scopeKey]['chld'] = [childKey]
+
+  resetInherit: (classObj) ->
+    if 'in_mem' of classObj
+      delete classObj['in_mem']
+    if 'res_parent' of classObj
+      delete classObj['res_parent']
+    if 'chld' of classObj
+      for childKey of classObj['chld']
+        childObj =  @projectObjList[childKey]
+        if childObj?
+          @resetInherit(childObj)
+
   resolveIherited: (scope) ->
     classObj = @projectObjList[scope]
     if 'in_mem' of classObj
@@ -566,6 +585,7 @@ class FortranProvider
     # Load from parent class
     parentKey = @projectObjList[scope]['res_parent']
     if parentKey of @projectObjList
+      @addChild(parentKey, scope)
       @resolveIherited(parentKey)
       #
       @projectObjList[scope]['in_mem'] = []
