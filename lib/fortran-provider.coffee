@@ -34,6 +34,8 @@ class FortranProvider
   rebuildIndex: () ->
     # Reset index
     @indexReady = false
+    @lastFile = ''
+    @lastRow = -1
     @modDirs = []
     @modFiles = []
     @fileIndexed = []
