@@ -317,7 +317,7 @@ class fortran_scope:
     def end(self, line_number):
         self.eline = line_number
     def write_scope(self):
-        scope_dict = {'name': self.name, 'type': self.get_type(), 'desc': self.get_desc(), 'fbound': [self.sline, self.eline], 'children': []}#{}}
+        scope_dict = {'name': self.name, 'type': self.get_type(), 'desc': self.get_desc(), 'fbound': [self.sline, self.eline], 'mem': []}#{}}
         if self.args is not None:
             arg_str = self.args
             if len(self.children) > 0:
@@ -333,7 +333,7 @@ class fortran_scope:
             scope_dict['args'] = arg_str
         if len(self.children) > 0:
             for child in self.children:
-                scope_dict['children'].append(child.name)
+                scope_dict['mem'].append(child.name)
         if len(self.use) > 0:
             scope_dict['use'] = []
             for use_stmt in self.use:
@@ -481,7 +481,7 @@ class fortran_int(fortran_scope):
         child_list = []
         for child in self.children:
             child_list.append(child)
-        scope_dict = {'name': self.name, 'type': 'copy', 'fbound': [self.sline, self.eline], 'children': child_list}
+        scope_dict = {'name': self.name, 'type': 'copy', 'fbound': [self.sline, self.eline], 'mem': child_list}
         if self.vis == -1:
             scope_dict['vis'] = '-1'
         elif self.vis == 1:

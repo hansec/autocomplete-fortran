@@ -324,8 +324,8 @@ class FortranProvider
     if FQN of @projectObjList
       return scope
     # Check inherited
-    if 'in_children' of @projectObjList[scope]
-      for childKey in @projectObjList[scope]['in_children']
+    if 'in_mem' of @projectObjList[scope]
+      for childKey in @projectObjList[scope]['in_mem']
         childScopes = childKey.split('::')
         childName = childScopes.pop()
         if childName == name
@@ -413,9 +413,9 @@ class FortranProvider
   addChildren: (scope, completions, prefix, onlyList) ->
     unless scope of @projectObjList
       return completions
-    unless 'children' of @projectObjList[scope]
+    unless 'mem' of @projectObjList[scope]
       return
-    children = @projectObjList[scope]['children']
+    children = @projectObjList[scope]['mem']
     for child in children
       if prefix?
         unless child.startsWith(prefix)
@@ -428,7 +428,7 @@ class FortranProvider
         if @projectObjList[childKey]['type'] == 'copy'
           @resolveInterface(childKey, scope)
           repName = @projectObjList[childKey]['name']
-          for copyKey in @projectObjList[childKey]['res_children']
+          for copyKey in @projectObjList[childKey]['res_mem']
             completions.push(@buildCompletion(@projectObjList[copyKey], repName))
         else
           if 'link' of @projectObjList[childKey]
@@ -443,8 +443,8 @@ class FortranProvider
             completions.push(@buildCompletion(@projectObjList[childKey]))
     # Add inherited
     @resolveIherited(scope)
-    if 'in_children' of @projectObjList[scope]
-      for childKey in @projectObjList[scope]['in_children']
+    if 'in_mem' of @projectObjList[scope]
+      for childKey in @projectObjList[scope]['in_mem']
         completions.push(@buildCompletion(@projectObjList[childKey]))
     return completions
 
@@ -488,9 +488,9 @@ class FortranProvider
   addPublicChildren: (scope, completions, prefix, onlyList) ->
     unless scope of @projectObjList
       return completions
-    unless 'children' of @projectObjList[scope]
+    unless 'mem' of @projectObjList[scope]
       return
-    children = @projectObjList[scope]['children']
+    children = @projectObjList[scope]['mem']
     currVis = 1
     if 'vis' of @projectObjList[scope]
       currVis = parseInt(@projectObjList[scope]['vis'])
@@ -512,7 +512,7 @@ class FortranProvider
         if @projectObjList[childKey]['type'] == 'copy'
           @resolveInterface(childKey, scope)
           repName = @projectObjList[childKey]['name']
-          for copyKey in @projectObjList[childKey]['res_children']
+          for copyKey in @projectObjList[childKey]['res_mem']
             completions.push(@buildCompletion(@projectObjList[copyKey], repName))
         else
           if 'link' of @projectObjList[childKey]
@@ -524,21 +524,21 @@ class FortranProvider
             completions.push(@buildCompletion(@projectObjList[childKey]))
     # Add inherited
     @resolveIherited(scope)
-    if 'in_children' of @projectObjList[scope]
-      for childKey in @projectObjList[scope]['in_children']
+    if 'in_mem' of @projectObjList[scope]
+      for childKey in @projectObjList[scope]['in_mem']
         completions.push(@buildCompletion(@projectObjList[childKey]))
     return completions
 
   resolveInterface: (intObjKey, scope) ->
-    if 'res_children' of @projectObjList[intObjKey]
+    if 'res_mem' of @projectObjList[intObjKey]
       return
     resolvedChildren = []
-    children = @projectObjList[intObjKey]['children']
+    children = @projectObjList[intObjKey]['mem']
     for copyKey in children
       resolvedScope = @findInScope(scope, copyKey)
       if resolvedScope?
         resolvedChildren.push(resolvedScope+"::"+copyKey)
-    @projectObjList[intObjKey]['res_children'] = resolvedChildren
+    @projectObjList[intObjKey]['res_mem'] = resolvedChildren
 
   resolveLink: (objKey, scope) ->
     unless 'link' of @projectObjList[objKey]
@@ -552,7 +552,7 @@ class FortranProvider
 
   resolveIherited: (scope) ->
     classObj = @projectObjList[scope]
-    if 'in_children' of classObj
+    if 'in_mem' of classObj
       return
     unless 'parent' of classObj
       return
@@ -568,20 +568,20 @@ class FortranProvider
     if parentKey of @projectObjList
       @resolveIherited(parentKey)
       #
-      @projectObjList[scope]['in_children'] = []
-      if 'children' of @projectObjList[scope]
-        classChildren = @projectObjList[scope]['children']
+      @projectObjList[scope]['in_mem'] = []
+      if 'mem' of @projectObjList[scope]
+        classChildren = @projectObjList[scope]['mem']
       else
         classChildren = []
-      if 'children' of @projectObjList[parentKey]
-        for childKey in @projectObjList[parentKey]['children']
+      if 'mem' of @projectObjList[parentKey]
+        for childKey in @projectObjList[parentKey]['mem']
           if classChildren.indexOf(childKey) == -1
-            @projectObjList[scope]['in_children'].push(parentKey+'::'+childKey)
-      if 'in_children' of @projectObjList[parentKey]
-        for childKey in @projectObjList[parentKey]['in_children']
+            @projectObjList[scope]['in_mem'].push(parentKey+'::'+childKey)
+      if 'in_mem' of @projectObjList[parentKey]
+        for childKey in @projectObjList[parentKey]['in_mem']
           childName = childKey.split('::').pop()
           if classChildren.indexOf(childName) == -1
-            @projectObjList[scope]['in_children'].push(childKey)
+            @projectObjList[scope]['in_mem'].push(childKey)
     return
 
   buildCompletion: (suggestion, repName=null, stripArg=false) ->
