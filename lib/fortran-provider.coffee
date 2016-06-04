@@ -554,7 +554,8 @@ class FortranProvider
 
   addChild: (scopeKey, childKey) ->
     if 'chld' of @projectObjList[scopeKey]
-      @projectObjList[scopeKey]['chld'].push(childKey)
+      if @projectObjList[scopeKey]['chld'].indexOf(childKey) == -1
+        @projectObjList[scopeKey]['chld'].push(childKey)
     else
       @projectObjList[scopeKey]['chld'] = [childKey]
 
