@@ -1,4 +1,4 @@
-{BufferedProcess, File} = require 'atom'
+{BufferedProcess, CompositeDisposable, File} = require 'atom'
 fs = require('fs')
 path = require('path')
 
@@ -8,6 +8,9 @@ class FortranProvider
   disableForSelector: '.source.fortran .comment, .source.fortran .string.quoted'
   inclusionPriority: 1
   suggestionPriority: 2
+
+  workspaceWatcher: undefined
+  saveWatchers: undefined
 
   pythonPath: ''
   parserPath: ''
@@ -30,6 +33,22 @@ class FortranProvider
     @pythonPath = atom.config.get('autocomplete-fortran.pythonPath')
     @parserPath = path.join(__dirname, "..", "python", "parse_fortran.py")
     @minPrefix = atom.config.get('autocomplete-fortran.minPrefix')
+    @saveWatchers = new CompositeDisposable
+    @workspaceWatcher = atom.workspace.observeTextEditors((editor) => @setupEditors(editor))
+
+  destructor: () ->
+    if @workspaceWatcher?
+      @workspaceWatcher.dispose()
+    if @saveWatchers?
+      @saveWatchers.dispose()
+
+  setupEditors: (editor) ->
+    @saveWatchers.add editor.onDidSave((event) => @fileUpdateSave(event))
+
+  fileUpdateSave: (event) ->
+    fileRef = @modFiles.indexOf(event.path)
+    if fileRef > -1
+      @fileUpdate(event.path)
 
   rebuildIndex: () ->
     # Reset index
