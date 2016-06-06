@@ -55,6 +55,5 @@ any nested sub directories must be explicitly listed.
 The FORTRAN parser is written in Python so a Python implementation is required to use this package. The path to Python may be set in package settings.
 
 ## TODOs and current limitations
- * Inherited fields do not automatically update if fields are added/removed from a parent type
  * Provide dimension information
  * Handle explicit PASS statement for type bound procedures

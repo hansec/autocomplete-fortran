@@ -1,3 +1,13 @@
+## 0.5.0
+
+### Improvements
+* Track child classes and update fields when parent class is updated
+* Trigger reparsing when a buffer is saved
+* Improve debug output for diagnosing parser failures
+
+## Fixes
+* Fix issue [#1](https://github.com/hansec/autocomplete-fortran/issues/1)- parsing error with "non-module" interface procedures
+
 ## 0.4.0
 
 ### Improvements
