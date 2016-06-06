@@ -683,14 +683,14 @@ while(not at_eof):
         if (match is not None):
             file_obj.end_scope(line_number)
             if(debug):
-                print 'Found scope end, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
+                print '{1} !!! END scope({0})'.format(line_number, line.strip())
             continue
         line_no_comment = line.split('!')[0]
         match = END_GEN_REGEX.match(line_no_comment)
         if (match is not None):
             file_obj.end_scope(line_number)
             if(debug):
-                print 'Found scope end, {0}:{1}, {2}'.format(filename, line_number, line[:-1])
+                print '{1} !!! END scope({0})'.format(line_number, line.strip())
             continue
     # Loop through tests
     obj_read = None
@@ -723,27 +723,27 @@ while(not at_eof):
                 new_var = fortran_obj(line_number, name_stripped, obj[0], modifiers, file_obj.enc_scope_name, link_name)
                 file_obj.add_variable(new_var)
             if(debug):
-                print 'Found variable statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+                print '{1} !!! VARIABLE statement({0})'.format(line_number, line.strip())
         elif obj_type == 'mod':
             new_mod = fortran_module(line_number, obj, file_obj.enc_scope_name)
             file_obj.add_scope(new_mod, END_MOD_REGEX)
             if(debug):
-                print 'Found module statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+                print '{1} !!! MODULE statement({0})'.format(line_number, line.strip())
         elif obj_type == 'prog':
             new_prog = fortran_program(line_number, obj, file_obj.enc_scope_name)
             file_obj.add_scope(new_prog, END_PROG_REGEX)
             if(debug):
-                print 'Found program statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+                print '{1} !!! PROGRAM statement({0})'.format(line_number, line.strip())
         elif obj_type == 'sub':
             new_sub = fortran_subroutine(line_number, obj[0], file_obj.enc_scope_name, obj[1])
             file_obj.add_scope(new_sub, END_SUB_REGEX)
             if(debug):
-                print 'Found subroutine statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+                print '{1} !!! SUBROUTINE statement({0})'.format(line_number, line.strip())
         elif obj_type == 'fun':
             new_fun = fortran_function(line_number, obj[0], file_obj.enc_scope_name, obj[1], return_type=obj[2][0], result_var=obj[2][1])
             file_obj.add_scope(new_fun, END_FUN_REGEX)
             if(debug):
-                print 'Found function statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+                print '{1} !!! FUNCTION statement({0})'.format(line_number, line.strip())
         elif obj_type == 'typ':
             modifiers = parse_keywords(obj[2])
             new_type = fortran_type(line_number, obj[0], modifiers, file_obj.enc_scope_name)
@@ -751,12 +751,12 @@ while(not at_eof):
                 new_type.set_parent(obj[1])
             file_obj.add_scope(new_type, END_TYPED_REGEX)
             if(debug):
-                print 'Found type statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+                print '{1} !!! TYPE statement({0})'.format(line_number, line.strip())
         elif obj_type == 'int':
             new_int = fortran_int(line_number, obj, file_obj.enc_scope_name)
             file_obj.add_scope(new_int, END_INT_REGEX, True)
             if(debug):
-                print 'Found INT statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+                print '{1} !!! INTERFACE statement({0})'.format(line_number, line.strip())
         elif obj_type == 'int_pro':
             if file_obj.current_scope is None:
                 continue
@@ -765,11 +765,11 @@ while(not at_eof):
             for name in obj:
                 file_obj.add_int_member(name)
             if(debug):
-                print 'Found INT-PRO statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+                print '{1} !!! INTERFACE-PRO statement({0})'.format(line_number, line.strip())
         elif obj_type == 'use':
             file_obj.current_scope.add_use(obj[0], obj[1])
             if(debug):
-                print 'Found USE statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+                print '{1} !!! USE statement({0})'.format(line_number, line.strip())
     # Look for visiblity statement
     match = VIS_REGEX.match(line)
     if (match is not None):
