@@ -703,13 +703,19 @@ while(not at_eof):
         obj_type = obj_read[0]
         obj = obj_read[1]
         if obj_type == 'var':
+            link_name = None
+            if obj[0][:3] == 'PRO':
+                if isinstance(file_obj.current_scope,fortran_int):
+                    for var_name in obj[2]:
+                        file_obj.add_int_member(var_name)
+                    if(debug):
+                        print '{1} !!! INTERFACE-PRO statement({0})'.format(line_number, line.strip())
+                    continue
+                i1 = obj[0].find('(')
+                i2 = obj[0].find(')')
+                if i1 > -1 and i2 > -1:
+                    link_name = obj[0][i1+1:i2]
             for var_name in obj[2]:
-                link_name = None
-                if obj[0][:3] == 'PRO':
-                    i1 = obj[0].find('(')
-                    i2 = obj[0].find(')')
-                    if i1 > -1 and i2 > -1:
-                        link_name = obj[0][i1+1:i2]
                 if var_name.find('=>') > -1:
                     name_split = var_name.split('=>')
                     name_stripped = name_split[0]
