@@ -76,7 +76,7 @@ class FortranProvider
     @indexReady = true
     return true
 
-  notifyBuildPending: (operation) ->
+  notifyIndexPending: (operation) ->
     atom.notifications?.addWarning("Could not complete operation: #{operation}", {
       detail: 'Indexing pending',
       dismissable: true
@@ -122,7 +122,7 @@ class FortranProvider
       allOutput = []
       stdout = (output) => allOutput.push(output)
       stderr = (output) => console.log output
-      exit = (code) => resolve(@handleCompletionResult(allOutput.join('\n'), code, filePath))
+      exit = (code) => resolve(@handleParserResult(allOutput.join('\n'), code, filePath))
       bufferedProcess = new BufferedProcess({command, args, stdout, stderr, exit})
 
   localUpdate: (editor, row)->
@@ -137,13 +137,13 @@ class FortranProvider
       allOutput = []
       stdout = (output) => allOutput.push(output)
       stderr = (output) => console.log output
-      exit = (code) => resolve(@handleCompletionResult(allOutput.join('\n'), code, filePath))
+      exit = (code) => resolve(@handleParserResult(allOutput.join('\n'), code, filePath))
       bufferedProcess = new BufferedProcess({command, args, stdout, stderr, exit})
       bufferedProcess.process.stdin.setEncoding = 'utf-8';
       bufferedProcess.process.stdin.write(editor.getText())
       bufferedProcess.process.stdin.end()
 
-  handleCompletionResult: (result,returnCode,filePath) ->
+  handleParserResult: (result,returnCode,filePath) ->
     if returnCode is not 0
       return
     try
@@ -213,6 +213,7 @@ class FortranProvider
 
   filterSuggestions: (prefix, editor, bufferPosition, activatedManually) ->
     completions = []
+    suggestions = []
     if prefix
       prefixLower = prefix.toLowerCase()
       lineContext = @getLineContext(editor, bufferPosition)
@@ -223,20 +224,21 @@ class FortranProvider
       lineScopes = @getLineScopes(editor, bufferPosition)
       cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
       if cursorScope?
-        return @addChildren(cursorScope, completions, prefixLower, [])
+        suggestions = @addChildren(cursorScope, suggestions, prefixLower, [])
+        return @buildCompletionList(suggestions)
       if prefix.length < @minPrefix and not activatedManually
         return completions
       for key in @globalObjInd when (@projectObjList[key]['name'].startsWith(prefixLower))
         if @projectObjList[key]['type'] == 'module'
           continue
-        completions.push(@buildCompletion(@projectObjList[key]))
+        suggestions.push(key)
       #
       usedMod = { }
       for lineScope in lineScopes
-        completions = @addChildren(lineScope, completions, prefixLower, [])
+        suggestions = @addChildren(lineScope, suggestions, prefixLower, [])
         usedMod = @getUseSearches(lineScope, usedMod, [])
       for useMod of usedMod
-        completions = @addPublicChildren(useMod, completions, prefixLower, usedMod[useMod])
+        suggestions = @addPublicChildren(useMod, suggestions, prefixLower, usedMod[useMod])
     else
       line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
       unless line.endsWith('%')
@@ -244,7 +246,9 @@ class FortranProvider
       lineScopes = @getLineScopes(editor, bufferPosition)
       cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
       if cursorScope?
-        return @addChildren(cursorScope, completions, null, [])
+        suggestions = @addChildren(cursorScope, suggestions, prefixLower, [])
+        return @buildCompletionList(suggestions)
+    completions = @buildCompletionList(suggestions)
     return completions
 
   goToDef: (word, editor, bufferPosition) ->
@@ -254,7 +258,7 @@ class FortranProvider
       @firstRun = false
     @localUpdate(editor, bufferPosition.row)
     unless @checkIndex()
-      @notifyBuildPending('Go To Definition')
+      @notifyIndexPending('Go To Definition')
       return
     wordLower = word.toLowerCase()
     lineScopes = @getLineScopes(editor, bufferPosition)
@@ -302,10 +306,10 @@ class FortranProvider
           for key in @globalObjInd when (@projectObjList[key]['name'].startsWith(prefixLower))
             if @projectObjList[key]['type'] != 'module'
               continue
-            suggestions.push(@buildCompletion(@projectObjList[key]))
+            suggestions.push(key)
         else
           for key in @globalObjInd
-            suggestions.push(@buildCompletion(@projectObjList[key]))
+            suggestions.push(key)
         return suggestions
       else if matches.length > 2
         modName = matches[1]
@@ -344,9 +348,12 @@ class FortranProvider
     FQN = scope + '::' + name
     if FQN of @projectObjList
       return scope
+    scopeObj = @projectObjList[scope]
+    unless scopeObj?
+      return null
     # Check inherited
-    if 'in_mem' of @projectObjList[scope]
-      for childKey in @projectObjList[scope]['in_mem']
+    if 'in_mem' of scopeObj
+      for childKey in scopeObj['in_mem']
         childScopes = childKey.split('::')
         childName = childScopes.pop()
         if childName == name
@@ -432,11 +439,12 @@ class FortranProvider
     return searchScope # Unknown enable everything!!!!
 
   addChildren: (scope, completions, prefix, onlyList) ->
-    unless scope of @projectObjList
+    scopeObj = @projectObjList[scope]
+    unless scopeObj?
       return completions
-    unless 'mem' of @projectObjList[scope]
+    children = scopeObj['mem']
+    unless children?
       return
-    children = @projectObjList[scope]['mem']
     for child in children
       if prefix?
         unless child.startsWith(prefix)
@@ -446,33 +454,19 @@ class FortranProvider
           continue
       childKey = scope+'::'+child
       if childKey of @projectObjList
-        if @projectObjList[childKey]['type'] == 'copy'
-          @resolveInterface(childKey, scope)
-          repName = @projectObjList[childKey]['name']
-          for copyKey in @projectObjList[childKey]['res_mem']
-            completions.push(@buildCompletion(@projectObjList[copyKey], repName))
-        else
-          if 'link' of @projectObjList[childKey]
-            @resolveLink(childKey, scope)
-            repName = @projectObjList[childKey]['name']
-            copyKey = @projectObjList[childKey]['res_link']
-            doPass = false
-            if @projectObjList[scope]['type'] == 'class'
-              doPass = @testPass(@projectObjList[childKey])
-            completions.push(@buildCompletion(@projectObjList[copyKey], repName, doPass))
-          else
-            completions.push(@buildCompletion(@projectObjList[childKey]))
+        completions.push(childKey)
     # Add inherited
     @resolveIherited(scope)
-    if 'in_mem' of @projectObjList[scope]
-      for childKey in @projectObjList[scope]['in_mem']
-        completions.push(@buildCompletion(@projectObjList[childKey]))
+    if 'in_mem' of scopeObj
+      for childKey in scopeObj['in_mem']
+        completions.push(childKey)
     return completions
 
   getUseSearches: (scope, modDict, onlyList) ->
     # Process USE STMT (only if no onlyList)
-    if 'use' of @projectObjList[scope]
-      for useMod in @projectObjList[scope]['use']
+    useList = @projectObjList[scope]['use']
+    if useList?
+      for useMod in useList
         if useMod[0] of @projectObjList
           mergedOnly = @getOnlyOverlap(onlyList, useMod[1])
           unless mergedOnly?
@@ -507,14 +501,15 @@ class FortranProvider
       return null
 
   addPublicChildren: (scope, completions, prefix, onlyList) ->
-    unless scope of @projectObjList
+    scopeObj = @projectObjList[scope]
+    unless scopeObj?
       return completions
-    unless 'mem' of @projectObjList[scope]
+    children = scopeObj['mem']
+    unless children?
       return
-    children = @projectObjList[scope]['mem']
     currVis = 1
-    if 'vis' of @projectObjList[scope]
-      currVis = parseInt(@projectObjList[scope]['vis'])
+    if 'vis' of scopeObj
+      currVis = parseInt(scopeObj['vis'])
     for child in children
       if prefix?
         unless child.startsWith(prefix)
@@ -523,53 +518,50 @@ class FortranProvider
         if onlyList.indexOf(child) == -1
           continue
       childKey = scope+'::'+child
-      if childKey of @projectObjList
-        if 'vis' of @projectObjList[childKey]
-          if parseInt(@projectObjList[childKey]['vis']) + currVis < 0
+      childObj = @projectObjList[childKey]
+      if childObj?
+        if 'vis' of childObj
+          if parseInt(childObj['vis']) + currVis < 0
             continue
         else
           if currVis < 0
             continue
-        if @projectObjList[childKey]['type'] == 'copy'
-          @resolveInterface(childKey, scope)
-          repName = @projectObjList[childKey]['name']
-          for copyKey in @projectObjList[childKey]['res_mem']
-            completions.push(@buildCompletion(@projectObjList[copyKey], repName))
-        else
-          if 'link' of @projectObjList[childKey]
-            @resolveLink(childKey, scope)
-            repName = @projectObjList[childKey]['name']
-            copyKey = @projectObjList[childKey]['res_link']
-            completions.push(@buildCompletion(@projectObjList[copyKey], repName))
-          else
-            completions.push(@buildCompletion(@projectObjList[childKey]))
+        completions.push(childKey)
     # Add inherited
     @resolveIherited(scope)
-    if 'in_mem' of @projectObjList[scope]
-      for childKey in @projectObjList[scope]['in_mem']
-        completions.push(@buildCompletion(@projectObjList[childKey]))
+    if 'in_mem' of scopeObj
+      for childKey in scopeObj['in_mem']
+        completions.push(childKey)
     return completions
 
-  resolveInterface: (intObjKey, scope) ->
-    if 'res_mem' of @projectObjList[intObjKey]
+  resolveInterface: (intObjKey) ->
+    intObj = @projectObjList[intObjKey]
+    if 'res_mem' of intObj
+      return
+    enclosingScope = @getEnclosingScope(intObjKey)
+    unless enclosingScope?
       return
     resolvedChildren = []
-    children = @projectObjList[intObjKey]['mem']
+    children = intObj['mem']
     for copyKey in children
-      resolvedScope = @findInScope(scope, copyKey)
+      resolvedScope = @findInScope(enclosingScope, copyKey)
       if resolvedScope?
         resolvedChildren.push(resolvedScope+"::"+copyKey)
-    @projectObjList[intObjKey]['res_mem'] = resolvedChildren
+    intObj['res_mem'] = resolvedChildren
 
-  resolveLink: (objKey, scope) ->
-    unless 'link' of @projectObjList[objKey]
+  resolveLink: (objKey) ->
+    varObj = @projectObjList[objKey]
+    linkKey = varObj['link']
+    unless linkKey?
       return
-    if 'res_link' of @projectObjList[objKey]
+    if 'res_link' of varObj
       return
-    linkKey = @projectObjList[objKey]['link']
-    resolvedScope = @findInScope(scope, linkKey)
+    enclosingScope = @getEnclosingScope(objKey)
+    unless enclosingScope?
+      return
+    resolvedScope = @findInScope(enclosingScope, linkKey)
     if resolvedScope?
-      @projectObjList[objKey]['res_link'] = resolvedScope+"::"+linkKey
+      varObj['res_link'] = resolvedScope+"::"+linkKey
 
   addChild: (scopeKey, childKey) ->
     if 'chld' of @projectObjList[scopeKey]
@@ -599,30 +591,60 @@ class FortranProvider
       parentName = classObj['parent']
       resolvedScope = @findInScope(scope, parentName)
       if resolvedScope?
-        @projectObjList[scope]['res_parent'] = resolvedScope+"::"+parentName
+        classObj['res_parent'] = resolvedScope+"::"+parentName
       else
         return
     # Load from parent class
-    parentKey = @projectObjList[scope]['res_parent']
-    if parentKey of @projectObjList
+    parentKey = classObj['res_parent']
+    parentObj = @projectObjList[parentKey]
+    if parentObj?
       @addChild(parentKey, scope)
       @resolveIherited(parentKey)
       #
-      @projectObjList[scope]['in_mem'] = []
-      if 'mem' of @projectObjList[scope]
-        classChildren = @projectObjList[scope]['mem']
+      classObj['in_mem'] = []
+      if 'mem' of classObj
+        classChildren = classObj['mem']
       else
         classChildren = []
-      if 'mem' of @projectObjList[parentKey]
-        for childKey in @projectObjList[parentKey]['mem']
+      if 'mem' of parentObj
+        for childKey in parentObj['mem']
           if classChildren.indexOf(childKey) == -1
-            @projectObjList[scope]['in_mem'].push(parentKey+'::'+childKey)
-      if 'in_mem' of @projectObjList[parentKey]
-        for childKey in @projectObjList[parentKey]['in_mem']
+            classObj['in_mem'].push(parentKey+'::'+childKey)
+      if 'in_mem' of parentObj
+        for childKey in parentObj['in_mem']
           childName = childKey.split('::').pop()
           if classChildren.indexOf(childName) == -1
-            @projectObjList[scope]['in_mem'].push(childKey)
+            classObj['in_mem'].push(childKey)
     return
+
+  getEnclosingScope: (objKey) ->
+    finalSep = objKey.lastIndexOf('::')
+    if finalSep == -1
+      return null
+    return objKey.substring(0,finalSep)
+
+  buildCompletionList: (suggestions) ->
+    completions = []
+    for suggestion in suggestions
+      compObj = @projectObjList[suggestion]
+      if compObj['type'] == 'copy'
+        @resolveInterface(suggestion)
+        repName = compObj['name']
+        for copyKey in compObj['res_mem']
+          completions.push(@buildCompletion(@projectObjList[copyKey], repName))
+      else
+        if 'link' of compObj
+          @resolveLink(suggestion)
+          repName = compObj['name']
+          copyKey = compObj['res_link']
+          if copyKey?
+            doPass = @testPass(compObj)
+            completions.push(@buildCompletion(@projectObjList[copyKey], repName, doPass))
+          else
+            completions.push(@buildCompletion(compObj))
+        else
+          completions.push(@buildCompletion(compObj))
+    return completions
 
   buildCompletion: (suggestion, repName=null, stripArg=false) ->
     name = suggestion['name']
