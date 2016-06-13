@@ -309,7 +309,7 @@ class fortran_scope:
     def add_child(self,child):
         self.children.append(child)
     def get_type(self):
-        return 'unknown'
+        return -1
     def get_desc(self):
         return 'unknown'
     def is_optional(self):
@@ -361,7 +361,7 @@ class fortran_module(fortran_scope):
         else:
             self.FQSN = self.name
     def get_type(self):
-        return 'module'
+        return 1
     def get_desc(self):
         return 'MODULE'
 #
@@ -380,7 +380,7 @@ class fortran_program(fortran_scope):
         else:
             self.FQSN = self.name
     def get_type(self):
-        return 'module'
+        return 1
     def get_desc(self):
         return 'PROGRAM'
 #
@@ -399,7 +399,7 @@ class fortran_subroutine(fortran_scope):
         else:
             self.FQSN = self.name
     def get_type(self):
-        return 'method'
+        return 2
     def get_desc(self):
         return 'SUBROUTINE'
 #
@@ -420,7 +420,7 @@ class fortran_function(fortran_scope):
         else:
             self.FQSN = self.name
     def get_type(self):
-        return 'function'
+        return 3
     def get_desc(self):
         desc = None
         if self.result_var is not None:
@@ -453,7 +453,7 @@ class fortran_type(fortran_scope):
             elif modifier == 5:
                 self.vis = -1
     def get_type(self):
-        return 'class'
+        return 4
     def get_desc(self):
         return 'TYPE'
 #
@@ -474,14 +474,14 @@ class fortran_int(fortran_scope):
     def add_child(self, child_fqn):
         self.children.append(child_fqn)
     def get_type(self):
-        return 'interface'
+        return 5
     def get_desc(self):
         return 'INTERFACE'
     def write_scope(self):
         child_list = []
         for child in self.children:
             child_list.append(child)
-        scope_dict = {'name': self.name, 'type': 'copy', 'fbound': [self.sline, self.eline], 'mem': child_list}
+        scope_dict = {'name': self.name, 'type': 7, 'fbound': [self.sline, self.eline], 'mem': child_list}
         if self.vis == -1:
             scope_dict['vis'] = '-1'
         elif self.vis == 1:
@@ -512,7 +512,7 @@ class fortran_obj:
     def set_visibility(self, new_vis):
         self.vis = new_vis
     def get_type(self):
-        return 'variable'
+        return 6
     def get_desc(self):
         return self.desc
     def is_optional(self):

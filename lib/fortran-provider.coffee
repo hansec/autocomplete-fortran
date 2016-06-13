@@ -220,7 +220,8 @@ class FortranProvider
       if lineContext == 2
         return completions
       if lineContext == 1
-        return @getUseSuggestion(editor, bufferPosition, prefixLower)
+        suggestions = @getUseSuggestion(editor, bufferPosition, prefixLower)
+        return @buildCompletionList(suggestions, lineContext)
       lineScopes = @getLineScopes(editor, bufferPosition)
       cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
       if cursorScope?
@@ -229,7 +230,7 @@ class FortranProvider
       if prefix.length < @minPrefix and not activatedManually
         return completions
       for key in @globalObjInd when (@projectObjList[key]['name'].startsWith(prefixLower))
-        if @projectObjList[key]['type'] == 'module'
+        if @projectObjList[key]['type'] == 1
           continue
         suggestions.push(key)
       #
@@ -239,6 +240,7 @@ class FortranProvider
         usedMod = @getUseSearches(lineScope, usedMod, [])
       for useMod of usedMod
         suggestions = @addPublicChildren(useMod, suggestions, prefixLower, usedMod[useMod])
+      completions = @buildCompletionList(suggestions, lineContext)
     else
       line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
       unless line.endsWith('%')
@@ -248,7 +250,7 @@ class FortranProvider
       if cursorScope?
         suggestions = @addChildren(cursorScope, suggestions, prefixLower, [])
         return @buildCompletionList(suggestions)
-    completions = @buildCompletionList(suggestions)
+      completions = @buildCompletionList(suggestions)
     return completions
 
   goToDef: (word, editor, bufferPosition) ->
@@ -304,30 +306,28 @@ class FortranProvider
       if matches.length == 2
         if prefixLower?
           for key in @globalObjInd when (@projectObjList[key]['name'].startsWith(prefixLower))
-            if @projectObjList[key]['type'] != 'module'
+            if @projectObjList[key]['type'] != 1
               continue
             suggestions.push(key)
         else
           for key in @globalObjInd
             suggestions.push(key)
-        return suggestions
       else if matches.length > 2
         modName = matches[1]
         suggestions = @addPublicChildren(modName, suggestions, prefixLower, [])
-        for suggestion in suggestions
-          if 'snippet' of suggestion
-            suggestion.snippet = suggestion.snippet.split('(')[0]
-        return suggestions
     return suggestions # Unknown enable everything!!!!
 
   getLineContext: (editor, bufferPosition) ->
     useRegex = /^[ \t]*USE[ \t]/i
     subDefRegex = /^[ \t]*(PURE|ELEMENTAL|RECURSIVE)*[ \t]*(MODULE|PROGRAM|SUBROUTINE|FUNCTION)[ \t]/i
+    typeDefRegex = /^[ \t]*(CLASS|TYPE)[ \t]*(IS)?[ \t]*\(/i
     line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
     if line.match(useRegex)?
       return 1
     if line.match(useRegex)?
       return 2
+    if line.match(typeDefRegex)?
+      return 3
     return 0
 
   getLineScopes: (editor, bufferPosition) ->
@@ -419,7 +419,7 @@ class FortranProvider
           containingScope = @findInScope(searchScope, varNameLower)
           if containingScope?
             varKey = containingScope + "::" + varNameLower
-            if @projectObjList[varKey]['type'].startsWith('var')
+            if @projectObjList[varKey]['type'] == 6
               varDefName = @getVarType(varKey)
               containingScope = @findInScope(containingScope, varDefName)
               searchScope = containingScope + '::' + varDefName
@@ -431,7 +431,7 @@ class FortranProvider
             containingScope = @findInScope(currScope, varNameLower)
             if containingScope?
               varKey = containingScope + "::" + varNameLower
-              if @projectObjList[varKey]['type'].startsWith('var')
+              if @projectObjList[varKey]['type'] == 6
                 varDefName = @getVarType(varKey)
                 containingScope = @findInScope(containingScope, varDefName)
                 searchScope = containingScope + '::' + varDefName
@@ -623,11 +623,13 @@ class FortranProvider
       return null
     return objKey.substring(0,finalSep)
 
-  buildCompletionList: (suggestions) ->
+  buildCompletionList: (suggestions, contextFilter=null) ->
     completions = []
     for suggestion in suggestions
       compObj = @projectObjList[suggestion]
-      if compObj['type'] == 'copy'
+      if contextFilter == 3 and compObj['type'] != 4
+        continue
+      if compObj['type'] == 7
         @resolveInterface(suggestion)
         repName = compObj['name']
         for copyKey in compObj['res_mem']
@@ -644,6 +646,11 @@ class FortranProvider
             completions.push(@buildCompletion(compObj))
         else
           completions.push(@buildCompletion(compObj))
+    #
+    if contextFilter == 1
+      for completion in completions
+        if 'snippet' of completion
+          completion['snippet'] = completion['snippet'].split('(')[0]
     return completions
 
   buildCompletion: (suggestion, repName=null, stripArg=false) ->
@@ -659,15 +666,25 @@ class FortranProvider
           argStr = argStr.substring(i1+1).trim()
         else
           argStr = ''
-      type: suggestion['type']
+      type: @mapType(suggestion['type'])
       snippet: name + "(" + argStr + ")"
       leftLabel: @descList[suggestion['desc']]+mods
     else
-      type: suggestion['type']
+      type: @mapType(suggestion['type'])
       text: name
       leftLabel: @descList[suggestion['desc']]
       description: mods
     #rightLabel: 'My Provider'
+
+  mapType: (typeInd) ->
+    switch typeInd
+      when 1 then return 'module'
+      when 2 then return 'method'
+      when 3 then return 'function'
+      when 4 then return 'class'
+      when 5 then return 'interface'
+      when 6 then return 'variable'
+    return 'unknown'
 
   getModifiers: (suggestion) ->
     modList = []
