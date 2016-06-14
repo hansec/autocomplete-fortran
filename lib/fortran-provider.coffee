@@ -690,6 +690,15 @@ class FortranProvider
     modList = []
     if 'mods' of suggestion
       for mod in suggestion['mods']
+        if mod > 20
+          ndims = mod-20
+          dimStr = "DIMENSION(:"
+          if ndims > 1
+            for i in [2..ndims]
+              dimStr += ",:"
+          dimStr += ")"
+          modList.push(dimStr)
+          continue
         switch mod
           when 1 then modList.push("POINTER")
           when 2 then modList.push("ALLOCATABLE")

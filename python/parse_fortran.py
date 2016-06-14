@@ -73,6 +73,20 @@ def separate_def_list(test_str):
         def_list.append(curr_str)
     return def_list
 #
+def get_var_dims(test_str):
+    paren_count = 0
+    curr_dim = 0
+    for char in test_str:
+        if char == '(':
+            paren_count += 1
+            if paren_count==1:
+                curr_dim = 1
+        elif char == ')':
+            paren_count -= 1
+        elif char == ',' and paren_count==1:
+            curr_dim += 1
+    return curr_dim
+#
 def parse_keywords(keywords):
     modifiers = []
     for key in keywords:
@@ -89,6 +103,10 @@ def parse_keywords(keywords):
             modifiers.append(5)
         elif key_lower == 'nopass':
             modifiers.append(6)
+        elif key_lower.startswith('dimension'):
+            ndims = key_lower.count(':')
+            modifiers.append(20+ndims)
+    modifiers.sort()
     return modifiers
 #
 def read_var_def(line, type_word=None):
@@ -515,6 +533,12 @@ class fortran_obj:
         return 6
     def get_desc(self):
         return self.desc
+    def set_dim(self,ndim):
+        for (i,modifier) in enumerate(self.modifiers):
+            if modifier > 20:
+                self.modifiers[i] = ndim+20
+                return
+        self.modifiers.append(ndim+20)
     def is_optional(self):
         try:
             ind = self.modifiers.index(3)
@@ -724,9 +748,14 @@ while(not at_eof):
                         link_name = None
                 else:
                     name_stripped = var_name.split('=')[0]
+                var_dim = 0
+                if name_stripped.find('(') > -1:
+                    var_dim = get_var_dims(name_stripped)
                 name_stripped = name_stripped.split('(')[0].strip()
                 modifiers = parse_keywords(obj[1])
                 new_var = fortran_obj(line_number, name_stripped, obj[0], modifiers, file_obj.enc_scope_name, link_name)
+                if var_dim > 0:
+                    new_var.set_dim(var_dim)
                 file_obj.add_variable(new_var)
             if(debug):
                 print '{1} !!! VARIABLE statement({0})'.format(line_number, line.strip())
