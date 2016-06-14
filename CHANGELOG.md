@@ -1,3 +1,9 @@
+## 0.6.0
+
+### Improvements
+* Provide array dimensions in suggestions
+* Add context filtering when only user-defined type names are valid
+
 ## 0.5.0
 
 ### Improvements

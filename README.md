@@ -1,8 +1,8 @@
-# autocomplete-fortran package
+# autocomplete-fortran package [![Package version!](https://img.shields.io/apm/v/autocomplete-fortran.svg?style=flat-square)](https://atom.io/packages/autocomplete-fortran) [![Plugin installs!](https://img.shields.io/apm/dm/autocomplete-fortran.svg?style=flat-square)](https://atom.io/packages/autocomplete-fortran)
 
 This package provides autocomplete suggestions and "Go To Declaration" support for FORTRAN code using [autocomplete-plus](https://atom.io/packages/autocomplete-plus).
 
-*Note:* This package is experimental.
+*Note:* This package is experimental. If find any bugs or if there are any missing features you would like please open an [issue](https://github.com/hansec/autocomplete-fortran/issues).
 
 ![Autocomplete in user-defined types](http://staff.washington.edu/hansec/ac_fortran_ex1.gif)
 
@@ -17,10 +17,10 @@ Additionally, you must have [Python](https://www.python.org/) installed on your 
 
 ## Features
  * Provides suggestions across imported modules
- * Handles suggestions within user-defined types even when nested
+ * Provides suggestions within user-defined types even when nested
  * Provides argument list for subroutine and function calls (optional arguments are indicated)
- * Provides return type for function calls
- * "Go To Declaration" support for FORTRAN object (including fields in user-defined types)
+ * Indicates return type for function calls
+ * "Go To Declaration" support for FORTRAN objects (including fields in user-defined types)
 
 ## Usage
 Suggestions should be presented automatically while typing. At anytime you can force rebuilding of the index through the menu `Packages->Autocomplete FOTRAN->Rebuild Index`.
@@ -55,5 +55,4 @@ any nested sub directories must be explicitly listed.
 The FORTRAN parser is written in Python so a Python implementation is required to use this package. The path to Python may be set in package settings.
 
 ## TODOs and current limitations
- * Provide dimension information
  * Handle explicit PASS statement for type bound procedures
