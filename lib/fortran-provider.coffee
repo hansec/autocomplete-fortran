@@ -658,6 +658,9 @@ class FortranProvider
     if repName?
       name = repName
     mods = @getModifiers(suggestion)
+    compObj = {}
+    compObj.type = @mapType(suggestion['type'])
+    compObj.leftLabel = @descList[suggestion['desc']]
     if 'args' of suggestion
       argStr = suggestion['args']
       if stripArg
@@ -666,14 +669,12 @@ class FortranProvider
           argStr = argStr.substring(i1+1).trim()
         else
           argStr = ''
-      type: @mapType(suggestion['type'])
-      snippet: name + "(" + argStr + ")"
-      leftLabel: @descList[suggestion['desc']]+mods
+      compObj.snippet = name + "(" + argStr + ")"
     else
-      type: @mapType(suggestion['type'])
-      text: name
-      leftLabel: @descList[suggestion['desc']]
-      description: mods
+      compObj.text = name
+    if mods != ''
+      compObj.description = mods
+    return compObj
     #rightLabel: 'My Provider'
 
   mapType: (typeInd) ->
