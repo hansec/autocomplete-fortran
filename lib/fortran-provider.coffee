@@ -48,7 +48,7 @@ class FortranProvider
   fileUpdateSave: (event) ->
     fileRef = @modFiles.indexOf(event.path)
     if fileRef > -1
-      @fileUpdate(event.path)
+      @fileUpdate(event.path, true)
 
   rebuildIndex: () ->
     # Reset index
@@ -118,12 +118,14 @@ class FortranProvider
             @modFiles.push(filePath)
             @fileIndexed.push(false)
 
-  fileUpdate: (filePath)->
+  fileUpdate: (filePath, closeScopes=false)->
     F77Regex = /[a-z0-9_]*\.F$/i
     command = @pythonPath
     args = [@parserPath,"--file=#{filePath}"]
     if filePath.match(F77Regex)
       args.push("--fixed")
+    if closeScopes
+      args.push("--close_scopes")
     #
     new Promise (resolve) =>
       allOutput = []

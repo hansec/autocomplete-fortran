@@ -13,6 +13,9 @@ parser.add_option("-d", "--debug",
 parser.add_option("-p", "--pretty",
                   action="store_true", dest="pretty", default=False,
                   help="Format JSON output")
+parser.add_option("--close_scopes",
+                  action="store_true", dest="close_scopes", default=False,
+                  help="Force all open scopes to close at end of parsing")
 parser.add_option("--fixed",
                   action="store_true", dest="fixed", default=False,
                   help="Parse using fixed-format rules")
@@ -620,11 +623,11 @@ class fortran_file:
             else:
                 self.current_scope.add_use(mod_words[0])
     def dump_json(self, line_count, close_open=False):
-        if len(self.scope_stack) > 0 and not close_open:
+        if (self.current_scope is not None) and (not close_open):
             print json.dumps({'error': 'Scope stack not empty'}, indent=self.indent_level)
             return
         if close_open:
-            while (len(self.scope_stack) > 0):
+            while (self.current_scope is not None):
                 self.end_scope(line_count)
         js_output = {'objs': {}, 'scopes': []}
         for scope in self.scope_list:
@@ -826,7 +829,7 @@ while(not at_eof):
         continue
 f.close()
 #
-close_open_scopes = False
+close_open_scopes = options.close_scopes
 if options.std:
     close_open_scopes = True
 file_obj.dump_json(line_number,close_open_scopes)
