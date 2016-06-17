@@ -2,7 +2,7 @@
 
 This package provides autocomplete suggestions and "Go To Declaration" support for FORTRAN code using [autocomplete-plus](https://atom.io/packages/autocomplete-plus).
 
-*Note:* This package is experimental. If find any bugs or if there are any missing features you would like please open an [issue](https://github.com/hansec/autocomplete-fortran/issues).
+*Note:* This package is experimental. If you find any bugs or if there are any missing features you would like please open an [issue](https://github.com/hansec/autocomplete-fortran/issues).
 
 ![Autocomplete in user-defined types](http://staff.washington.edu/hansec/ac_fortran_ex1.gif)
 
@@ -53,6 +53,8 @@ any nested sub directories must be explicitly listed.
 ![AC FORTRAN settings](http://staff.washington.edu/hansec/ac_fortran_settings.png)
 
 The FORTRAN parser is written in Python so a Python implementation is required to use this package. The path to Python may be set in package settings.
+
+Many additional settings, such as the selection keys (`TAB`/`ENTER`), are governed by the global settings for the [autocomplete-plus](https://atom.io/packages/autocomplete-plus) package.
 
 ## TODOs and current limitations
  * Handle explicit PASS statement for type bound procedures
