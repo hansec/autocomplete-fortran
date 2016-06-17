@@ -103,7 +103,14 @@ class FortranProvider
           for modDir in configOptions['mod_dirs']
             @modDirs.push(path.join(projDir, modDir))
     for modDir in @modDirs
-      files = fs.readdirSync(modDir)
+      try
+        files = fs.readdirSync(modDir)
+      catch
+        atom.notifications?.addWarning("Warning: During indexing specified module directory cannot be read", {
+          detail: "Directory '#{modDir}' will be skipped",
+          dismissable: true
+        })
+        continue
       for file in files
         if file.match(F90Regex) or file.match(F77Regex)
           filePath = path.join(modDir, file)
