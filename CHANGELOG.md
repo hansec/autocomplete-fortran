@@ -1,3 +1,9 @@
+## 0.6.1
+
+### Fixes
+* Catch invalid or inaccessible module directory paths- fixes issue [#2](https://github.com/hansec/autocomplete-fortran/issues/2)
+* Fix parsing errors when a file is saved while adding a new scope
+
 ## 0.6.0
 
 ### Improvements
