@@ -64,8 +64,7 @@ class FortranProvider
     @descList = []
     # Build index
     @findModFiles()
-    for filePath in @modFiles
-      @fileUpdate(filePath)
+    @filesUpdate(@modFiles)
 
   checkIndex: () ->
     if @indexReady
@@ -118,10 +117,46 @@ class FortranProvider
             @modFiles.push(filePath)
             @fileIndexed.push(false)
 
+  filesUpdate: (filePaths, closeScopes=false)->
+    F77Regex = /[a-z0-9_]*\.F$/i
+    command = @pythonPath
+    #
+    fixedBatch = []
+    freeBatch = []
+    for filePath in filePaths
+      if filePath.match(F77Regex)
+        fixedBatch.push(filePath)
+      else
+        freeBatch.push(filePath)
+    #
+    if fixedBatch.length > 0
+      fixedFilePaths = fixedBatch.join(',')
+      new Promise (resolve) =>
+        allOutput = []
+        args = [@parserPath, "--files=#{fixedFilePaths}", "--fixed"]
+        if closeScopes
+          args.push("--close_scopes")
+        stdout = (output) => allOutput.push(output)
+        stderr = (output) => console.log output
+        exit = (code) => resolve(@handleParserResults(allOutput.join(''), code, fixedBatch))
+        fixedBufferedProcess = new BufferedProcess({command, args, stdout, stderr, exit})
+    #
+    if freeBatch.length > 0
+      freeFilePaths = freeBatch.join(',')
+      new Promise (resolve) =>
+        allOutput = []
+        args = [@parserPath, "--files=#{freeFilePaths}"]
+        if closeScopes
+          args.push("--close_scopes")
+        stdout = (output) => allOutput.push(output)
+        stderr = (output) => console.log output
+        exit = (code) => resolve(@handleParserResults(allOutput.join(''), code, freeBatch))
+        freeBufferedProcess = new BufferedProcess({command, args, stdout, stderr, exit})
+
   fileUpdate: (filePath, closeScopes=false)->
     F77Regex = /[a-z0-9_]*\.F$/i
     command = @pythonPath
-    args = [@parserPath,"--file=#{filePath}"]
+    args = [@parserPath,"--files=#{filePath}"]
     if filePath.match(F77Regex)
       args.push("--fixed")
     if closeScopes
@@ -151,6 +186,18 @@ class FortranProvider
       bufferedProcess.process.stdin.setEncoding = 'utf-8';
       bufferedProcess.process.stdin.write(editor.getText())
       bufferedProcess.process.stdin.end()
+
+  handleParserResults: (results,returnCode,filePaths) ->
+    if returnCode is not 0
+      return
+    resultsSplit = results.split('\n')
+    nResults = resultsSplit.length - 1
+    nFiles = filePaths.length
+    if nResults != nFiles
+      console.log 'Error parsing files: # of files and results does not match', nResults, nFiles
+      return
+    for i in [0..nFiles-1]
+      @handleParserResult(resultsSplit[i],returnCode,filePaths[i])
 
   handleParserResult: (result,returnCode,filePath) ->
     if returnCode is not 0

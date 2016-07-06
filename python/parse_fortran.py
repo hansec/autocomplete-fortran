@@ -19,8 +19,8 @@ parser.add_option("--close_scopes",
 parser.add_option("--fixed",
                   action="store_true", dest="fixed", default=False,
                   help="Parse using fixed-format rules")
-parser.add_option("--file", dest="file", default=None,
-                  help="Directories to parse")
+parser.add_option("--files", dest="files", default=None,
+                  help="Files to parse")
 (options, args) = parser.parse_args()
 debug = options.debug
 fixed_format = options.fixed
@@ -624,7 +624,7 @@ class fortran_file:
                 self.current_scope.add_use(mod_words[0])
     def dump_json(self, line_count, close_open=False):
         if (self.current_scope is not None) and (not close_open):
-            print json.dumps({'error': 'Scope stack not empty'}, indent=self.indent_level)
+            print json.dumps({'error': 'Scope stack not empty'})
             return
         if close_open:
             while (self.current_scope is not None):
@@ -641,195 +641,198 @@ class fortran_file:
         for public_obj in self.public_list:
             if public_obj in js_output['objs']:
                 js_output['objs'][public_obj]['vis'] = 1
-        print json.dumps(js_output, indent=self.indent_level)
-#
-if options.std:
-    filename = 'STDIN'
-    f = sys.stdin
-else:
-    filename = options.file
-    f = open(filename)
+        print json.dumps(js_output, indent=self.indent_level, separators=(',', ':'))
 #
 def_tests = [read_var_def, read_sub_def, read_fun_def, read_type_def, read_use_stmt, read_int_def, read_mod_def, read_prog_def]
-indent_level = None
-if options.pretty:
-    indent_level = 2
-file_obj = fortran_file(indent_level)
-line_number = 0
-next_line_num = 1
-at_eof = False
-next_line = None
-while(not at_eof):
-    # Get next line
-    if next_line is None:
-        line = f.readline()
+if options.std:
+    files = ['STDIN']
+else:
+    files = options.files.split(',')
+#
+for (ifile,fname) in enumerate(files):
+    filename = fname
+    close_open_scopes = options.close_scopes
+    if filename == 'STDIN':
+        f = sys.stdin
+        close_open_scopes = True
     else:
-        line = next_line
-        next_line = None
-    line_number = next_line_num
-    next_line_num = line_number + 1
-    if line == '':
-        break # Reached end of file
-    # Skip comment lines
-    match = COMMENT_LINE_MATCH.match(line)
-    if (match is not None):
-        continue
-    # Merge lines with continuations
-    if fixed_format:
-        next_line = f.readline()
-        cont_match = CONT_REGEX.match(next_line)
-        while( cont_match is not None ):
-            line = line[:-1] + next_line[6:-1].strip()
-            next_line_num += 1
+        f = open(filename)
+    #
+    indent_level = None
+    if options.pretty:
+        indent_level = 2
+    file_obj = fortran_file(indent_level)
+    line_number = 0
+    next_line_num = 1
+    at_eof = False
+    next_line = None
+    while(not at_eof):
+        # Get next line
+        if next_line is None:
+            line = f.readline()
+        else:
+            line = next_line
+            next_line = None
+        line_number = next_line_num
+        next_line_num = line_number + 1
+        if line == '':
+            break # Reached end of file
+        # Skip comment lines
+        match = COMMENT_LINE_MATCH.match(line)
+        if (match is not None):
+            continue
+        # Merge lines with continuations
+        if fixed_format:
             next_line = f.readline()
             cont_match = CONT_REGEX.match(next_line)
-    else:
-        iAmper = line.find('&')
-        iComm = line.find('!')
-        if iComm < 0:
-            iComm = iAmper + 1
-        while (iAmper >= 0 and iAmper < iComm):
-            split_line = line.split('&')
-            next_line = f.readline()
-            if next_line == '':
-                at_eof = True
-                break # Reached end of file
-            cont_match = CONT_REGEX.match(next_line)
-            if cont_match is not None:
-                next_line = next_line[cont_match.end(0):]
-            next_line_num += 1
-            line = split_line[0].rstrip() + ' ' + next_line.strip()
+            while( cont_match is not None ):
+                line = line[:-1] + next_line[6:-1].strip()
+                next_line_num += 1
+                next_line = f.readline()
+                cont_match = CONT_REGEX.match(next_line)
+        else:
             iAmper = line.find('&')
             iComm = line.find('!')
             if iComm < 0:
                 iComm = iAmper + 1
-        next_line = None
-    # Test for scope end
-    if file_obj.END_REGEX is not None:
-        match = file_obj.END_REGEX.match(line)
-        if (match is not None):
-            file_obj.end_scope(line_number)
-            if(debug):
-                print '{1} !!! END scope({0})'.format(line_number, line.strip())
-            continue
-        line_no_comment = line.split('!')[0]
-        match = END_GEN_REGEX.match(line_no_comment)
-        if (match is not None):
-            file_obj.end_scope(line_number)
-            if(debug):
-                print '{1} !!! END scope({0})'.format(line_number, line.strip())
-            continue
-    # Loop through tests
-    obj_read = None
-    for test in def_tests:
-        obj_read = test(line)
+            while (iAmper >= 0 and iAmper < iComm):
+                split_line = line.split('&')
+                next_line = f.readline()
+                if next_line == '':
+                    at_eof = True
+                    break # Reached end of file
+                cont_match = CONT_REGEX.match(next_line)
+                if cont_match is not None:
+                    next_line = next_line[cont_match.end(0):]
+                next_line_num += 1
+                line = split_line[0].rstrip() + ' ' + next_line.strip()
+                iAmper = line.find('&')
+                iComm = line.find('!')
+                if iComm < 0:
+                    iComm = iAmper + 1
+            next_line = None
+        # Test for scope end
+        if file_obj.END_REGEX is not None:
+            match = file_obj.END_REGEX.match(line)
+            if (match is not None):
+                file_obj.end_scope(line_number)
+                if(debug):
+                    print '{1} !!! END scope({0})'.format(line_number, line.strip())
+                continue
+            line_no_comment = line.split('!')[0]
+            match = END_GEN_REGEX.match(line_no_comment)
+            if (match is not None):
+                file_obj.end_scope(line_number)
+                if(debug):
+                    print '{1} !!! END scope({0})'.format(line_number, line.strip())
+                continue
+        # Loop through tests
+        obj_read = None
+        for test in def_tests:
+            obj_read = test(line)
+            if obj_read is not None:
+                break
+        #
         if obj_read is not None:
-            break
-    #
-    if obj_read is not None:
-        obj_type = obj_read[0]
-        obj = obj_read[1]
-        if obj_type == 'var':
-            link_name = None
-            if obj[0][:3] == 'PRO':
-                if isinstance(file_obj.current_scope,fortran_int):
-                    for var_name in obj[2]:
-                        file_obj.add_int_member(var_name)
-                    if(debug):
-                        print '{1} !!! INTERFACE-PRO statement({0})'.format(line_number, line.strip())
+            obj_type = obj_read[0]
+            obj = obj_read[1]
+            if obj_type == 'var':
+                link_name = None
+                if obj[0][:3] == 'PRO':
+                    if isinstance(file_obj.current_scope,fortran_int):
+                        for var_name in obj[2]:
+                            file_obj.add_int_member(var_name)
+                        if(debug):
+                            print '{1} !!! INTERFACE-PRO statement({0})'.format(line_number, line.strip())
+                        continue
+                    i1 = obj[0].find('(')
+                    i2 = obj[0].find(')')
+                    if i1 > -1 and i2 > -1:
+                        link_name = obj[0][i1+1:i2]
+                for var_name in obj[2]:
+                    if var_name.find('=>') > -1:
+                        name_split = var_name.split('=>')
+                        name_stripped = name_split[0]
+                        link_name = name_split[1].split('(')[0].strip()
+                        if link_name.lower() == 'null':
+                            link_name = None
+                    else:
+                        name_stripped = var_name.split('=')[0]
+                    var_dim = 0
+                    if name_stripped.find('(') > -1:
+                        var_dim = get_var_dims(name_stripped)
+                    name_stripped = name_stripped.split('(')[0].strip()
+                    modifiers = parse_keywords(obj[1])
+                    new_var = fortran_obj(line_number, name_stripped, obj[0], modifiers, file_obj.enc_scope_name, link_name)
+                    if var_dim > 0:
+                        new_var.set_dim(var_dim)
+                    file_obj.add_variable(new_var)
+                if(debug):
+                    print '{1} !!! VARIABLE statement({0})'.format(line_number, line.strip())
+            elif obj_type == 'mod':
+                new_mod = fortran_module(line_number, obj, file_obj.enc_scope_name)
+                file_obj.add_scope(new_mod, END_MOD_REGEX)
+                if(debug):
+                    print '{1} !!! MODULE statement({0})'.format(line_number, line.strip())
+            elif obj_type == 'prog':
+                new_prog = fortran_program(line_number, obj, file_obj.enc_scope_name)
+                file_obj.add_scope(new_prog, END_PROG_REGEX)
+                if(debug):
+                    print '{1} !!! PROGRAM statement({0})'.format(line_number, line.strip())
+            elif obj_type == 'sub':
+                new_sub = fortran_subroutine(line_number, obj[0], file_obj.enc_scope_name, obj[1])
+                file_obj.add_scope(new_sub, END_SUB_REGEX)
+                if(debug):
+                    print '{1} !!! SUBROUTINE statement({0})'.format(line_number, line.strip())
+            elif obj_type == 'fun':
+                new_fun = fortran_function(line_number, obj[0], file_obj.enc_scope_name, obj[1], return_type=obj[2][0], result_var=obj[2][1])
+                file_obj.add_scope(new_fun, END_FUN_REGEX)
+                if(debug):
+                    print '{1} !!! FUNCTION statement({0})'.format(line_number, line.strip())
+            elif obj_type == 'typ':
+                modifiers = parse_keywords(obj[2])
+                new_type = fortran_type(line_number, obj[0], modifiers, file_obj.enc_scope_name)
+                if obj[1] is not None:
+                    new_type.set_parent(obj[1])
+                file_obj.add_scope(new_type, END_TYPED_REGEX)
+                if(debug):
+                    print '{1} !!! TYPE statement({0})'.format(line_number, line.strip())
+            elif obj_type == 'int':
+                new_int = fortran_int(line_number, obj, file_obj.enc_scope_name)
+                file_obj.add_scope(new_int, END_INT_REGEX, True)
+                if(debug):
+                    print '{1} !!! INTERFACE statement({0})'.format(line_number, line.strip())
+            elif obj_type == 'int_pro':
+                if file_obj.current_scope is None:
                     continue
-                i1 = obj[0].find('(')
-                i2 = obj[0].find(')')
-                if i1 > -1 and i2 > -1:
-                    link_name = obj[0][i1+1:i2]
-            for var_name in obj[2]:
-                if var_name.find('=>') > -1:
-                    name_split = var_name.split('=>')
-                    name_stripped = name_split[0]
-                    link_name = name_split[1].split('(')[0].strip()
-                    if link_name.lower() == 'null':
-                        link_name = None
-                else:
-                    name_stripped = var_name.split('=')[0]
-                var_dim = 0
-                if name_stripped.find('(') > -1:
-                    var_dim = get_var_dims(name_stripped)
-                name_stripped = name_stripped.split('(')[0].strip()
-                modifiers = parse_keywords(obj[1])
-                new_var = fortran_obj(line_number, name_stripped, obj[0], modifiers, file_obj.enc_scope_name, link_name)
-                if var_dim > 0:
-                    new_var.set_dim(var_dim)
-                file_obj.add_variable(new_var)
-            if(debug):
-                print '{1} !!! VARIABLE statement({0})'.format(line_number, line.strip())
-        elif obj_type == 'mod':
-            new_mod = fortran_module(line_number, obj, file_obj.enc_scope_name)
-            file_obj.add_scope(new_mod, END_MOD_REGEX)
-            if(debug):
-                print '{1} !!! MODULE statement({0})'.format(line_number, line.strip())
-        elif obj_type == 'prog':
-            new_prog = fortran_program(line_number, obj, file_obj.enc_scope_name)
-            file_obj.add_scope(new_prog, END_PROG_REGEX)
-            if(debug):
-                print '{1} !!! PROGRAM statement({0})'.format(line_number, line.strip())
-        elif obj_type == 'sub':
-            new_sub = fortran_subroutine(line_number, obj[0], file_obj.enc_scope_name, obj[1])
-            file_obj.add_scope(new_sub, END_SUB_REGEX)
-            if(debug):
-                print '{1} !!! SUBROUTINE statement({0})'.format(line_number, line.strip())
-        elif obj_type == 'fun':
-            new_fun = fortran_function(line_number, obj[0], file_obj.enc_scope_name, obj[1], return_type=obj[2][0], result_var=obj[2][1])
-            file_obj.add_scope(new_fun, END_FUN_REGEX)
-            if(debug):
-                print '{1} !!! FUNCTION statement({0})'.format(line_number, line.strip())
-        elif obj_type == 'typ':
-            modifiers = parse_keywords(obj[2])
-            new_type = fortran_type(line_number, obj[0], modifiers, file_obj.enc_scope_name)
-            if obj[1] is not None:
-                new_type.set_parent(obj[1])
-            file_obj.add_scope(new_type, END_TYPED_REGEX)
-            if(debug):
-                print '{1} !!! TYPE statement({0})'.format(line_number, line.strip())
-        elif obj_type == 'int':
-            new_int = fortran_int(line_number, obj, file_obj.enc_scope_name)
-            file_obj.add_scope(new_int, END_INT_REGEX, True)
-            if(debug):
-                print '{1} !!! INTERFACE statement({0})'.format(line_number, line.strip())
-        elif obj_type == 'int_pro':
-            if file_obj.current_scope is None:
-                continue
-            if not isinstance(file_obj.current_scope,fortran_int):
-                continue
-            for name in obj:
-                file_obj.add_int_member(name)
-            if(debug):
-                print '{1} !!! INTERFACE-PRO statement({0})'.format(line_number, line.strip())
-        elif obj_type == 'use':
-            file_obj.current_scope.add_use(obj[0], obj[1])
-            if(debug):
-                print '{1} !!! USE statement({0})'.format(line_number, line.strip())
-    # Look for visiblity statement
-    match = VIS_REGEX.match(line)
-    if (match is not None):
-        match_lower = match.group(0).lower()
-        trailing_line = line[match.end(0):]
-        mod_words = WORD_REGEX.findall(trailing_line)
-        if len(mod_words) == 0:
-            if match_lower == 'private':
-                file_obj.current_scope.set_visibility(-1)
-        else:
-            if match_lower == 'private':
-                for word in mod_words:
-                    file_obj.add_private(word)
+                if not isinstance(file_obj.current_scope,fortran_int):
+                    continue
+                for name in obj:
+                    file_obj.add_int_member(name)
+                if(debug):
+                    print '{1} !!! INTERFACE-PRO statement({0})'.format(line_number, line.strip())
+            elif obj_type == 'use':
+                file_obj.current_scope.add_use(obj[0], obj[1])
+                if(debug):
+                    print '{1} !!! USE statement({0})'.format(line_number, line.strip())
+        # Look for visiblity statement
+        match = VIS_REGEX.match(line)
+        if (match is not None):
+            match_lower = match.group(0).lower()
+            trailing_line = line[match.end(0):]
+            mod_words = WORD_REGEX.findall(trailing_line)
+            if len(mod_words) == 0:
+                if match_lower == 'private':
+                    file_obj.current_scope.set_visibility(-1)
             else:
-                for word in mod_words:
-                    file_obj.add_public(word)
-        if(debug):
-            print 'Found visiblity statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
-        continue
-f.close()
-#
-close_open_scopes = options.close_scopes
-if options.std:
-    close_open_scopes = True
-file_obj.dump_json(line_number,close_open_scopes)
+                if match_lower == 'private':
+                    for word in mod_words:
+                        file_obj.add_private(word)
+                else:
+                    for word in mod_words:
+                        file_obj.add_public(word)
+            if(debug):
+                print 'Found visiblity statement, {0}:{1}, {2}'.format(filename, line_number, line.strip())
+            continue
+    f.close()
+    file_obj.dump_json(line_number,close_open_scopes)
