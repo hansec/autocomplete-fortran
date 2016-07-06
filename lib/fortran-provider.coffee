@@ -272,14 +272,15 @@ class FortranProvider
     suggestions = []
     if prefix
       prefixLower = prefix.toLowerCase()
-      lineContext = @getLineContext(editor, bufferPosition)
+      fullLine = @getFullLine(editor, bufferPosition)
+      lineContext = @getLineContext(fullLine)
       if lineContext == 2
         return completions
       if lineContext == 1
-        suggestions = @getUseSuggestion(editor, bufferPosition, prefixLower)
+        suggestions = @getUseSuggestion(fullLine, prefixLower)
         return @buildCompletionList(suggestions, lineContext)
       lineScopes = @getLineScopes(editor, bufferPosition)
-      cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
+      cursorScope = @getClassScope(fullLine, lineScopes)
       if cursorScope?
         suggestions = @addChildren(cursorScope, suggestions, prefixLower, [])
         return @buildCompletionList(suggestions)
@@ -301,8 +302,9 @@ class FortranProvider
       line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
       unless line.endsWith('%')
         return completions
+      fullLine = @getFullLine(editor, bufferPosition)
       lineScopes = @getLineScopes(editor, bufferPosition)
-      cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
+      cursorScope = @getClassScope(fullLine, lineScopes)
       if cursorScope?
         suggestions = @addChildren(cursorScope, suggestions, prefixLower, [])
         return @buildCompletionList(suggestions)
@@ -321,7 +323,8 @@ class FortranProvider
     wordLower = word.toLowerCase()
     lineScopes = @getLineScopes(editor, bufferPosition)
     # Look up class tree
-    cursorScope = @getClassScope(editor, bufferPosition, lineScopes)
+    fullLine = @getFullLine(editor, bufferPosition)
+    cursorScope = @getClassScope(fullLine, lineScopes)
     if cursorScope?
       @resolveIherited(cursorScope)
       containingScope = @findInScope(cursorScope, wordLower)
@@ -350,11 +353,10 @@ class FortranProvider
       return @modFiles[fileRef]+":"+lineRef.toString()
     return null
 
-  getUseSuggestion: (editor, bufferPosition, prefixLower) ->
+  getUseSuggestion: (line, prefixLower) ->
     useRegex = /^[ \t]*use[ \t]+/i
     wordRegex = /[a-z0-9_]+/gi
     suggestions = []
-    line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
     if line.match(useRegex)?
       unless prefixLower.match(wordRegex)?
         prefixLower = ""
@@ -373,11 +375,33 @@ class FortranProvider
         suggestions = @addPublicChildren(modName, suggestions, prefixLower, [])
     return suggestions # Unknown enable everything!!!!
 
-  getLineContext: (editor, bufferPosition) ->
+  getFullLine: (editor, bufferPosition) ->
+    F77Regex = /[a-z0-9_]*\.F$/i
+    fixedCommRegex = /^     [\S]/i
+    freeCommRegex = /&[ \t]*$/i
+    line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
+    #
+    fixedForm = false
+    if editor.getPath().match(F77Regex)
+      fixedForm = true
+    pRow = bufferPosition.row - 1
+    while pRow >= 0
+      pLine = editor.lineTextForBufferRow(pRow)
+      pLine = pLine.split('!')[0]
+      if fixedForm
+        unless line.match(fixedCommRegex)
+          break
+      else
+        unless pLine.match(freeCommRegex)
+          break
+      line = pLine.split('&')[0] + line
+      pRow = pRow - 1
+    return line
+
+  getLineContext: (line) ->
     useRegex = /^[ \t]*USE[ \t]/i
     subDefRegex = /^[ \t]*(PURE|ELEMENTAL|RECURSIVE)*[ \t]*(MODULE|PROGRAM|SUBROUTINE|FUNCTION)[ \t]/i
     typeDefRegex = /^[ \t]*(CLASS|TYPE)[ \t]*(IS)?[ \t]*\(/i
-    line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
     if line.match(useRegex)?
       return 1
     if line.match(useRegex)?
@@ -439,11 +463,10 @@ class FortranProvider
     i2 = typeDef.indexOf(')')
     return typeDef.substring(i1+1,i2)
 
-  getClassScope: (editor, bufferPosition, currScopes) ->
+  getClassScope: (line, currScopes) ->
     typeDerefCheck = /%/i
     objBreakReg = /[\/\-(.,+*<>=$:]/ig
     parenRepReg = /\((.+)\)/ig
-    line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
     #
     unless line.match(typeDerefCheck)?
       return null
