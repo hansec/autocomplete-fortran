@@ -1,3 +1,9 @@
+## 0.7.0
+
+### Improvements
+* Improve parsing speed during initial indexing and full rebuilds (initial indexing should now be almost instant)
+* Detect and handle line continuation with context based suggestion filtering (ex. USE statements)
+
 ## 0.6.1
 
 ### Fixes

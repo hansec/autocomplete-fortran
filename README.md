@@ -28,8 +28,8 @@ Suggestions should be presented automatically while typing. At anytime you can f
 "Go To Declaration" is also supported for FORTRAN objects as the `FORTRAN-Goto Declaration` option in the context menu (right-click in editor). "Go To Declaration" can also be activated by the key binding `cmd-alt-g` on OS X and `ctrl-alt-g` on Linux/Windows.
 
 ### Notes
- * Initial setup of the index, including file parsing, is performed upon the first suggestion call. This may cause the first suggestion to take a moment to appear for large projects (usually <2 seconds).
- * After setup the index is dynamically updated as you modify files. However, if you edit a file outside of Atom changes will not be incorporated into the index until you edit that file in Atom or rebuild the index manually.
+ * Initial setup of the index, including file parsing, is performed upon the first suggestion call. This may cause the first suggestion to take a moment to appear for very large projects (this is usually not noticeable).
+ * After setup the index is dynamically updated as you modify files. However, if you edit a file outside of Atom (ex. switching branches in git,svn,etc.) changes will not be incorporated into the index until you edit the modified files in Atom or rebuild the index manually.
  * The grammar (fixed or free) is currently determined by file extension (`*.f` or `*.F` for fixed-form) and (`*.f90` or `*.F90` for free-form)
  * See TODO section.
 
