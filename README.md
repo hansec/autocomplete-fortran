@@ -1,4 +1,4 @@
-# autocomplete-fortran package [![Package version!](https://img.shields.io/apm/v/autocomplete-fortran.svg?style=flat-square)](https://atom.io/packages/autocomplete-fortran) [![Plugin installs!](https://img.shields.io/apm/dm/autocomplete-fortran.svg?style=flat-square)](https://atom.io/packages/autocomplete-fortran)
+# autocomplete-fortran package [![Package version](https://img.shields.io/apm/v/autocomplete-fortran.svg?style=flat-square)](https://atom.io/packages/autocomplete-fortran) [![Plugin installs](https://img.shields.io/apm/dm/autocomplete-fortran.svg?style=flat-square)](https://atom.io/packages/autocomplete-fortran)
 
 This package provides autocomplete suggestions and "Go To Declaration" support for FORTRAN code using [autocomplete-plus](https://atom.io/packages/autocomplete-plus).
 
@@ -30,16 +30,16 @@ Suggestions should be presented automatically while typing. At anytime you can f
 ### Notes
  * Initial setup of the index, including file parsing, is performed upon the first suggestion call. This may cause the first suggestion to take a moment to appear for very large projects (this is usually not noticeable).
  * After setup the index is dynamically updated as you modify files. However, if you edit a file outside of Atom (ex. switching branches in git,svn,etc.) changes will not be incorporated into the index until you edit the modified files in Atom or rebuild the index manually.
- * The grammar (fixed or free) is currently determined by file extension (`*.f` or `*.F` for fixed-form) and (`*.f90` or `*.F90` for free-form)
+ * The grammar (fixed or free) is currently determined by file extension (`f,F,f77,F77,for,FOR,fpp,FPP` for fixed-form) and (`f90,F90,f95,F95,f03,F03,f08,F08` for free-form)
  * See TODO section.
 
 ## Configuration
 
 ### Setup module search paths
-By default all files with the suffix `*.f`,`*.F`,`*.f90`, or `*.F90` in the base atom project directory are parsed
-and used for generating suggestions. Specific folders containing FORTRAN source files can be set for
-a given project by placing a JSON file (example below) named `.ac_fortran` in the base directory.
-Folders to search are listed in the variable `mod_dirs` (relative to the project root) and excluded
+By default all files with the suffix `f,F,f77,F77,for,FOR,fpp,FPP` or `f90,F90,f95,F95,f03,F03,f08,F08` in the
+base atom project directory are parsed and used for generating suggestions. Specific folders containing FORTRAN
+source files can be set for a given project by placing a JSON file (example below) named `.ac_fortran` in the
+base directory. Folders to search are listed in the variable `mod_dirs` (relative to the project root) and excluded
 files can be specified using the variable `excl_paths`. Directories are not added recursively, so
 any nested sub directories must be explicitly listed.
 

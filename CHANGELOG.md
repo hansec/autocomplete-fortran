@@ -1,3 +1,8 @@
+## 0.7.1
+
+### Improvements
+* Add support for additional file extensions to match the language-fortran package- fixes issue [#3](https://github.com/hansec/autocomplete-fortran/issues/3)
+
 ## 0.7.0
 
 ### Improvements
