@@ -58,3 +58,7 @@ Many additional settings, such as the selection keys (`TAB`/`ENTER`), are govern
 
 ## TODOs and current limitations
  * Handle explicit PASS statement for type bound procedures
+
+--------
+
+If you *really* like [autocomplete-fortran](https://atom.io/packages/autocomplete-fortran) you can <a href='https://ko-fi.com/A1085MY' target="_blank"><img height='25' style='border:0px;height:25px;' src='https://az743702.vo.msecnd.net/cdn/kofi1.png?v=b' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a> or a :beer: to show your appreciation.
