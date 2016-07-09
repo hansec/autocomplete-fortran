@@ -82,8 +82,8 @@ class FortranProvider
     })
 
   findModFiles: ()->
-    F90Regex = /[a-z0-9_]*\.F90$/i
-    F77Regex = /[a-z0-9_]*\.F$/i
+    freeRegex = /[a-z0-9_]*\.F(90|95|03|08)$/i # f90,F90,f95,F95,f03,F03,f08,F08
+    fixedRegex = /[a-z0-9_]*\.F(77|OR|PP)?$/i # f,F,f77,F77,for,FOR,fpp,FPP
     projectDirs = atom.project.getPaths()
     @modDirs = projectDirs
     @exclPaths = []
@@ -111,20 +111,20 @@ class FortranProvider
         })
         continue
       for file in files
-        if file.match(F90Regex) or file.match(F77Regex)
+        if file.match(freeRegex) or file.match(fixedRegex)
           filePath = path.join(modDir, file)
           if @exclPaths.indexOf(filePath) == -1
             @modFiles.push(filePath)
             @fileIndexed.push(false)
 
   filesUpdate: (filePaths, closeScopes=false)->
-    F77Regex = /[a-z0-9_]*\.F$/i
+    fixedRegex = /[a-z0-9_]*\.F(77|OR|PP)?$/i # f,F,f77,F77,for,FOR,fpp,FPP
     command = @pythonPath
     #
     fixedBatch = []
     freeBatch = []
     for filePath in filePaths
-      if filePath.match(F77Regex)
+      if filePath.match(fixedRegex)
         fixedBatch.push(filePath)
       else
         freeBatch.push(filePath)
@@ -154,10 +154,10 @@ class FortranProvider
         freeBufferedProcess = new BufferedProcess({command, args, stdout, stderr, exit})
 
   fileUpdate: (filePath, closeScopes=false)->
-    F77Regex = /[a-z0-9_]*\.F$/i
+    fixedRegex = /[a-z0-9_]*\.F(77|OR|PP)?$/i # f,F,f77,F77,for,FOR,fpp,FPP
     command = @pythonPath
     args = [@parserPath,"--files=#{filePath}"]
-    if filePath.match(F77Regex)
+    if filePath.match(fixedRegex)
       args.push("--fixed")
     if closeScopes
       args.push("--close_scopes")
@@ -170,11 +170,11 @@ class FortranProvider
       bufferedProcess = new BufferedProcess({command, args, stdout, stderr, exit})
 
   localUpdate: (editor, row)->
-    F77Regex = /[a-z0-9_]*\.F$/i
+    fixedRegex = /[a-z0-9_]*\.F(77|OR|PP)?$/i # f,F,f77,F77,for,FOR,fpp,FPP
     filePath = editor.getPath()
     command = @pythonPath
     args = [@parserPath,"-s"]
-    if filePath.match(F77Regex)
+    if filePath.match(fixedRegex)
       args.push("--fixed")
     #
     new Promise (resolve) =>
@@ -376,13 +376,13 @@ class FortranProvider
     return suggestions # Unknown enable everything!!!!
 
   getFullLine: (editor, bufferPosition) ->
-    F77Regex = /[a-z0-9_]*\.F$/i
+    fixedRegex = /[a-z0-9_]*\.F(77|OR|PP)?$/i # f,F,f77,F77,for,FOR,fpp,FPP
     fixedCommRegex = /^     [\S]/i
     freeCommRegex = /&[ \t]*$/i
     line = editor.getTextInRange([[bufferPosition.row, 0], bufferPosition])
     #
     fixedForm = false
-    if editor.getPath().match(F77Regex)
+    if editor.getPath().match(fixedRegex)
       fixedForm = true
     pRow = bufferPosition.row - 1
     while pRow >= 0
