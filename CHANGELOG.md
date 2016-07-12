@@ -1,3 +1,11 @@
+## 0.8.0
+
+### Improvements
+* Preserve completion case in suggestions
+
+### Fixes
+* Fix suggestions for functions with variable-style definitions (erroneous comma in return type)
+
 ## 0.7.1
 
 ### Improvements

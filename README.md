@@ -15,6 +15,8 @@ This package requires the following packages to be installed:
 
 Additionally, you must have [Python](https://www.python.org/) installed on your system.
 
+This package was been tested and *should* work on :apple: Mac OSX, :penguin: Linux and Windows
+
 ## Features
  * Provides suggestions across imported modules
  * Provides suggestions within user-defined types even when nested
@@ -31,7 +33,6 @@ Suggestions should be presented automatically while typing. At anytime you can f
  * Initial setup of the index, including file parsing, is performed upon the first suggestion call. This may cause the first suggestion to take a moment to appear for very large projects (this is usually not noticeable).
  * After setup the index is dynamically updated as you modify files. However, if you edit a file outside of Atom (ex. switching branches in git,svn,etc.) changes will not be incorporated into the index until you edit the modified files in Atom or rebuild the index manually.
  * The grammar (fixed or free) is currently determined by file extension (`f,F,f77,F77,for,FOR,fpp,FPP` for fixed-form) and (`f90,F90,f95,F95,f03,F03,f08,F08` for free-form)
- * See TODO section.
 
 ## Configuration
 
@@ -50,15 +51,15 @@ any nested sub directories must be explicitly listed.
 
 ### Settings
 
-![AC FORTRAN settings](http://staff.washington.edu/hansec/ac_fortran_settings.png)
-
-The FORTRAN parser is written in Python so a Python implementation is required to use this package. The path to Python may be set in package settings.
+The FORTRAN parser is written in Python so a Python implementation is required to use this package. The path to Python may be set in package settings (required for Windows).
 
 Many additional settings, such as the selection keys (`TAB`/`ENTER`), are governed by the global settings for the [autocomplete-plus](https://atom.io/packages/autocomplete-plus) package.
 
-## TODOs and current limitations
+## TODOs
  * Handle explicit PASS statement for type bound procedures
+ * Allow fuzzy completion suggestions
+ * Add support for generating and using external index files (completions for libraries outside project ex. MPI,BLAS/LAPACK)
 
 --------
 
-If you *really* like [autocomplete-fortran](https://atom.io/packages/autocomplete-fortran) you can <a href='https://ko-fi.com/A1085MY' target="_blank"><img height='25' style='border:0px;height:25px;' src='https://az743702.vo.msecnd.net/cdn/kofi1.png?v=b' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a> or a :beer: to show your appreciation.
+If you *really* like [autocomplete-fortran](https://atom.io/packages/autocomplete-fortran) you can <a href='https://ko-fi.com/A1085MY' target="_blank"><img height='25' style='border:0px;height:25px;' src='https://az743702.vo.msecnd.net/cdn/kofi1.png?v=b' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a> or a :beer: to say thanks.
