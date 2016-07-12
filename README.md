@@ -15,7 +15,7 @@ This package requires the following packages to be installed:
 
 Additionally, you must have [Python](https://www.python.org/) installed on your system.
 
-This package was been tested and *should* work on :apple: Mac OSX, :penguin: Linux and Windows
+This package has been tested and *should* work on :apple: Mac OSX, :penguin: Linux and Windows
 
 ## Features
  * Provides suggestions across imported modules
