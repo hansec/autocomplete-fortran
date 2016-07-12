@@ -649,20 +649,13 @@ class fortran_file:
         print json.dumps(js_output, indent=self.indent_level, separators=(',', ':'))
 #
 def_tests = [read_var_def, read_sub_def, read_fun_def, read_type_def, read_use_stmt, read_int_def, read_mod_def, read_prog_def]
-if options.std:
-    files = ['STDIN']
-else:
-    files = options.files.split(',')
 #
-for (ifile,fname) in enumerate(files):
-    filename = fname
-    close_open_scopes = options.close_scopes
+def process_file(filename,close_open_scopes):
     if filename == 'STDIN':
         f = sys.stdin
         close_open_scopes = True
     else:
         f = open(filename)
-    #
     indent_level = None
     if options.pretty:
         indent_level = 2
@@ -706,6 +699,10 @@ for (ifile,fname) in enumerate(files):
                 if next_line == '':
                     at_eof = True
                     break # Reached end of file
+                # Skip comment lines
+                match = COMMENT_LINE_MATCH.match(next_line)
+                if (match is not None):
+                    continue
                 cont_match = CONT_REGEX.match(next_line)
                 if cont_match is not None:
                     next_line = next_line[cont_match.end(0):]
@@ -844,3 +841,17 @@ for (ifile,fname) in enumerate(files):
             continue
     f.close()
     file_obj.dump_json(line_number,close_open_scopes)
+#
+if options.std:
+    files = ['STDIN']
+else:
+    files = options.files.split(',')
+#
+for (ifile,fname) in enumerate(files):
+    filename = fname
+    try:
+        process_file(filename,options.close_scopes)
+    except:
+        if debug:
+            raise
+        print json.dumps({'error': 'Python error'})
