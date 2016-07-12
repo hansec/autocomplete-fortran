@@ -23,7 +23,7 @@ module.exports =
   provider: null
 
   activate: ->
-    console.log 'Activated AC-Fortran!'
+    #console.log 'Activated AC-Fortran!'
     # Events subscribed to in atom's system can be easily cleaned up with a CompositeDisposable
     @subscriptions = new CompositeDisposable
     # Register command that rebuilds index

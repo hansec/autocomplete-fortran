@@ -18,6 +18,7 @@ class FortranProvider
   preserveCase: true
   firstRun: true
   indexReady: false
+  globalUpToDate: true
   lastFile: ''
   lastRow: -1
 
@@ -56,6 +57,7 @@ class FortranProvider
   rebuildIndex: () ->
     # Reset index
     @indexReady = false
+    @globalUpToDate = true
     @lastFile = ''
     @lastRow = -1
     @modDirs = []
@@ -248,14 +250,17 @@ class FortranProvider
       for key in oldObjList
         unless key of fileAST['objs']
           delete @projectObjList[key]
-    #
+    @fileObjInd[filePath] = fileAST['scopes']
+    @fileIndexed[fileRef] = true
+    @globalUpToDate = false
+
+  updateGlobalIndex: () ->
+    if @globalUpToDate
+      return
     @globalObjInd = []
     for key of @projectObjList
       if not key.match(/::/)
         @globalObjInd.push(key)
-    @fileObjInd[filePath] = fileAST['scopes']
-    @fileIndexed[fileRef] = true
-    #console.log 'Updated suggestions'
 
   getSuggestions: ({editor, bufferPosition, prefix, activatedManually}) ->
     unless @exclPaths.indexOf(editor.getPath()) == -1
@@ -283,6 +288,7 @@ class FortranProvider
   filterSuggestions: (prefix, editor, bufferPosition, activatedManually) ->
     completions = []
     suggestions = []
+    @updateGlobalIndex()
     if prefix
       prefixLower = prefix.toLowerCase()
       fullLine = @getFullLine(editor, bufferPosition)
@@ -333,6 +339,7 @@ class FortranProvider
     unless @checkIndex()
       @notifyIndexPending('Go To Definition')
       return
+    @updateGlobalIndex()
     wordLower = word.toLowerCase()
     lineScopes = @getLineScopes(editor, bufferPosition)
     # Look up class tree
