@@ -431,8 +431,13 @@ class fortran_function(fortran_scope):
         self.name = name.lower()
         self.children = []
         self.use = []
-        self.return_type = return_type
         self.result_var = result_var
+        if return_type is not None:
+            self.return_type = return_type[0]
+            self.modifiers = parse_keywords(return_type[1])
+        else:
+            self.return_type = None
+            self.modifiers = []
         self.parent = None
         self.vis = 0
         self.args = args
@@ -787,6 +792,9 @@ for (ifile,fname) in enumerate(files):
             elif obj_type == 'fun':
                 new_fun = fortran_function(line_number, obj[0], file_obj.enc_scope_name, obj[1], return_type=obj[2][0], result_var=obj[2][1])
                 file_obj.add_scope(new_fun, END_FUN_REGEX)
+                if obj[2][0] is not None:
+                    new_obj = fortran_obj(line_number, obj[0], obj[2][0][0], obj[2][0][1], file_obj.enc_scope_name, None)
+                    file_obj.add_variable(new_obj)
                 if(debug):
                     print '{1} !!! FUNCTION statement({0})'.format(line_number, line.strip())
             elif obj_type == 'typ':
