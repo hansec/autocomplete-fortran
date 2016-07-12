@@ -13,7 +13,13 @@ module.exports =
       default: 2
       order: 2
       title: 'Minimum word length'
-      description: "Only autocomplete when you have typed at least this many characters. Note: autocomplete is always active for user-defined type fields"
+      description: "Only autocomplete when you have typed at least this many characters. Note: autocomplete is always active for user-defined type fields."
+    preserveCase:
+      type: 'boolean'
+      default: true
+      order: 3
+      title: 'Preserve completion case'
+      description: "Preserve case of suggestions from their defintion when inserting completions. Otherwise all suggestions will be lowercase."
   provider: null
 
   activate: ->

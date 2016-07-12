@@ -179,7 +179,7 @@ def read_fun_def(line, return_type=None):
     if paren_match is not None:
         word_match = WORD_REGEX.findall(paren_match.group(0))
         if word_match is not None:
-            word_match = [word.lower() for word in word_match]
+            word_match = [word for word in word_match]
             args = ','.join(word_match)
         trailing_line = trailing_line[paren_match.end(0):]
     #
@@ -210,7 +210,7 @@ def read_sub_def(line):
     if paren_match is not None:
         word_match = WORD_REGEX.findall(paren_match.group(0))
         if word_match is not None:
-            word_match = [word.lower() for word in word_match]
+            word_match = [word for word in word_match]
             args = ','.join(word_match)
         trailing_line = trailing_line[paren_match.end(0):]
     return 'sub', [name, args]
@@ -308,16 +308,16 @@ class fortran_scope:
     def __init__(self, line_number, name, enc_scope=None, args=None):
         self.sline = line_number
         self.eline = None
-        self.name = name.lower()
+        self.name = name
         self.children = []
         self.use = []
         self.parent = None
         self.vis = 0
         self.args = args
         if enc_scope is not None:
-            self.FQSN = enc_scope.lower() + "::" + self.name
+            self.FQSN = enc_scope.lower() + "::" + self.name.lower()
         else:
-            self.FQSN = self.name
+            self.FQSN = self.name.lower()
     def set_visibility(self, new_vis):
         self.vis = new_vis
     def add_use(self, use_mod, only_list=[]):
@@ -371,16 +371,16 @@ class fortran_module(fortran_scope):
     def __init__(self, line_number, name, enc_scope=None, args=None):
         self.sline = line_number
         self.eline = None
-        self.name = name.lower()
+        self.name = name
         self.children = []
         self.use = []
         self.parent = None
         self.vis = 0
         self.args = args
         if enc_scope is not None:
-            self.FQSN = enc_scope.lower() + "::" + self.name
+            self.FQSN = enc_scope.lower() + "::" + self.name.lower()
         else:
-            self.FQSN = self.name
+            self.FQSN = self.name.lower()
     def get_type(self):
         return 1
     def get_desc(self):
@@ -390,16 +390,16 @@ class fortran_program(fortran_scope):
     def __init__(self, line_number, name, enc_scope=None, args=None):
         self.sline = line_number
         self.eline = None
-        self.name = name.lower()
+        self.name = name
         self.children = []
         self.use = []
         self.parent = None
         self.vis = 0
         self.args = args
         if enc_scope is not None:
-            self.FQSN = enc_scope.lower() + "::" + self.name
+            self.FQSN = enc_scope.lower() + "::" + self.name.lower()
         else:
-            self.FQSN = self.name
+            self.FQSN = self.name.lower()
     def get_type(self):
         return 1
     def get_desc(self):
@@ -409,16 +409,16 @@ class fortran_subroutine(fortran_scope):
     def __init__(self, line_number, name, enc_scope=None, args=None):
         self.sline = line_number
         self.eline = None
-        self.name = name.lower()
+        self.name = name
         self.children = []
         self.use = []
         self.parent = None
         self.vis = 0
         self.args = args
         if enc_scope is not None:
-            self.FQSN = enc_scope.lower() + "::" + self.name
+            self.FQSN = enc_scope.lower() + "::" + self.name.lower()
         else:
-            self.FQSN = self.name
+            self.FQSN = self.name.lower()
     def get_type(self):
         return 2
     def get_desc(self):
@@ -428,7 +428,7 @@ class fortran_function(fortran_scope):
     def __init__(self, line_number, name, enc_scope=None, args=None, return_type=None, result_var=None):
         self.sline = line_number
         self.eline = None
-        self.name = name.lower()
+        self.name = name
         self.children = []
         self.use = []
         self.result_var = result_var
@@ -442,9 +442,9 @@ class fortran_function(fortran_scope):
         self.vis = 0
         self.args = args
         if enc_scope is not None:
-            self.FQSN = enc_scope.lower() + "::" + self.name
+            self.FQSN = enc_scope.lower() + "::" + self.name.lower()
         else:
-            self.FQSN = self.name
+            self.FQSN = self.name.lower()
     def get_type(self):
         return 3
     def get_desc(self):
@@ -462,7 +462,7 @@ class fortran_type(fortran_scope):
     def __init__(self, line_number, name, modifiers, enc_scope=None, args=None):
         self.sline = line_number
         self.eline = None
-        self.name = name.lower()
+        self.name = name
         self.children = []
         self.use = []
         self.modifiers = modifiers
@@ -470,9 +470,9 @@ class fortran_type(fortran_scope):
         self.vis = 0
         self.args = args
         if enc_scope is not None:
-            self.FQSN = enc_scope.lower() + "::" + self.name
+            self.FQSN = enc_scope.lower() + "::" + self.name.lower()
         else:
-            self.FQSN = self.name
+            self.FQSN = self.name.lower()
         for modifier in self.modifiers:
             if modifier == 4:
                 self.vis = 1
@@ -487,16 +487,16 @@ class fortran_int(fortran_scope):
     def __init__(self, line_number, name, enc_scope=None, args=None):
         self.sline = line_number
         self.eline = None
-        self.name = name.lower()
+        self.name = name
         self.children = []
         self.use = []
         self.parent = None
         self.vis = 0
         self.args = args
         if enc_scope is not None:
-            self.FQSN = enc_scope.lower() + "::" + self.name
+            self.FQSN = enc_scope.lower() + "::" + self.name.lower()
         else:
-            self.FQSN = self.name
+            self.FQSN = self.name.lower()
     def add_child(self, child_fqn):
         self.children.append(child_fqn)
     def get_type(self):
@@ -517,7 +517,7 @@ class fortran_int(fortran_scope):
 class fortran_obj:
     def __init__(self, line_number, name, var_desc, modifiers, enc_scope=None, link_obj=None):
         self.sline = line_number
-        self.name = name.lower()
+        self.name = name
         self.desc = var_desc
         self.modifiers = modifiers
         self.children = []
@@ -527,9 +527,9 @@ class fortran_obj:
         else:
             self.link_obj = None
         if enc_scope is not None:
-            self.FQSN = enc_scope.lower() + "::" + self.name
+            self.FQSN = enc_scope.lower() + "::" + self.name.lower()
         else:
-            self.FQSN = self.name
+            self.FQSN = self.name.lower()
         for modifier in self.modifiers:
             if modifier == 4:
                 self.vis = 1

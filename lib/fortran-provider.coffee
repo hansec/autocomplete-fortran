@@ -15,6 +15,7 @@ class FortranProvider
   pythonPath: ''
   parserPath: ''
   minPrefix: 2
+  preserveCase: true
   firstRun: true
   indexReady: false
   lastFile: ''
@@ -33,6 +34,7 @@ class FortranProvider
     @pythonPath = atom.config.get('autocomplete-fortran.pythonPath')
     @parserPath = path.join(__dirname, "..", "python", "parse_fortran.py")
     @minPrefix = atom.config.get('autocomplete-fortran.minPrefix')
+    @preserveCase = atom.config.get('autocomplete-fortran.preserveCase')
     @saveWatchers = new CompositeDisposable
     @workspaceWatcher = atom.workspace.observeTextEditors((editor) => @setupEditors(editor))
 
@@ -286,7 +288,7 @@ class FortranProvider
         return @buildCompletionList(suggestions)
       if prefix.length < @minPrefix and not activatedManually
         return completions
-      for key in @globalObjInd when (@projectObjList[key]['name'].startsWith(prefixLower))
+      for key in @globalObjInd when (@projectObjList[key]['name'].toLowerCase().startsWith(prefixLower))
         if @projectObjList[key]['type'] == 1
           continue
         suggestions.push(key)
@@ -363,7 +365,7 @@ class FortranProvider
       matches = line.match(wordRegex)
       if matches.length == 2
         if prefixLower?
-          for key in @globalObjInd when (@projectObjList[key]['name'].startsWith(prefixLower))
+          for key in @globalObjInd when (@projectObjList[key]['name'].toLowerCase().startsWith(prefixLower))
             if @projectObjList[key]['type'] != 1
               continue
             suggestions.push(key)
@@ -525,13 +527,14 @@ class FortranProvider
     unless children?
       return
     for child in children
+      childLower = child.toLowerCase()
       if prefix?
-        unless child.startsWith(prefix)
+        unless childLower.startsWith(prefix)
           continue
       if onlyList.length > 0
-        if onlyList.indexOf(child) == -1
+        if onlyList.indexOf(childLower) == -1
           continue
-      childKey = scope+'::'+child
+      childKey = scope+'::'+childLower
       if childKey of @projectObjList
         completions.push(childKey)
     # Add inherited
@@ -590,13 +593,14 @@ class FortranProvider
     if 'vis' of scopeObj
       currVis = parseInt(scopeObj['vis'])
     for child in children
+      childLower = child.toLowerCase()
       if prefix?
-        unless child.startsWith(prefix)
+        unless childLower.startsWith(prefix)
           continue
       if onlyList.length > 0
-        if onlyList.indexOf(child) == -1
+        if onlyList.indexOf(childLower) == -1
           continue
-      childKey = scope+'::'+child
+      childKey = scope+'::'+childLower
       childObj = @projectObjList[childKey]
       if childObj?
         if 'vis' of childObj
@@ -740,6 +744,8 @@ class FortranProvider
     compObj = {}
     compObj.type = @mapType(suggestion['type'])
     compObj.leftLabel = @descList[suggestion['desc']]
+    unless @preserveCase
+      name = name.toLowerCase()
     if 'args' of suggestion
       argStr = suggestion['args']
       if stripArg
@@ -748,6 +754,8 @@ class FortranProvider
           argStr = argStr.substring(i1+1).trim()
         else
           argStr = ''
+      unless @preserveCase
+        argStr = argStr.toLowerCase()
       compObj.snippet = name + "(" + argStr + ")"
     else
       compObj.text = name
