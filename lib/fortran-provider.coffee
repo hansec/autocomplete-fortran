@@ -22,6 +22,7 @@ class FortranProvider
   lastRow: -1
 
   fileObjInd: { }
+  fileObjLists: { }
   globalObjInd: []
   projectObjList: { }
   exclPaths: []
@@ -61,6 +62,7 @@ class FortranProvider
     @modFiles = []
     @fileIndexed = []
     @fileObjInd = { }
+    @fileObjLists = { }
     @globalObjInd = []
     @projectObjList = { }
     @descList = []
@@ -226,7 +228,10 @@ class FortranProvider
     if fileRef == -1
       @modFiles.push(filePath)
       fileRef = @modFiles.indexOf(filePath)
+    oldObjList = @fileObjLists[filePath]
+    @fileObjLists[filePath] = []
     for key of fileAST['objs']
+      @fileObjLists[filePath].push(key)
       if key of @projectObjList
         @resetInherit(@projectObjList[key])
       @projectObjList[key] = fileAST['objs'][key]
@@ -238,6 +243,12 @@ class FortranProvider
           @projectObjList[key]['desc'] = @descList.length-1
         else
           @projectObjList[key]['desc'] = descIndex
+    # Remove old objects
+    if oldObjList?
+      for key in oldObjList
+        unless key of fileAST['objs']
+          delete @projectObjList[key]
+    #
     @globalObjInd = []
     for key of @projectObjList
       if not key.match(/::/)
