@@ -25,7 +25,7 @@ This package has been tested and *should* work on :apple: Mac OSX, :penguin: Lin
  * "Go To Declaration" support for FORTRAN objects (including fields in user-defined types)
 
 ## Usage
-Suggestions should be presented automatically while typing. At anytime you can force rebuilding of the index through the menu `Packages->Autocomplete FOTRAN->Rebuild Index`.
+Suggestions should be presented automatically while typing. At anytime you can force rebuilding of the index through the menu `Packages->Autocomplete FOTRAN->Rebuild index`.
 
 "Go To Declaration" is also supported for FORTRAN objects as the `FORTRAN-Goto Declaration` option in the context menu (right-click in editor). "Go To Declaration" can also be activated by the key binding `cmd-alt-g` on OS X and `ctrl-alt-g` on Linux/Windows.
 
@@ -47,6 +47,20 @@ any nested sub directories must be explicitly listed.
     {
       "mod_dirs": ["subdir1", "subdir2"],
       "excl_paths": ["subdir1/file_to_skip.F90"]
+    }
+
+### External index files
+Additional autocompletion information can also be imported for use in the current project by specifying index files
+in the variable `ext_index` (relative to the project root) in your project's `.ac_fortran` file. Index files can be
+generated from a project through the menu through the menu `Packages->Autocomplete FOTRAN->Save external index file`.
+This action will save a file called `ac_fortran_index.json` in the root directory of the project containing all the
+information necessary to provide autocompletion for FORTRAN entities in the project. However, source file information
+will be stripped so "Go To Declaration" will not be available for externally imported entities. This file can then
+be used to make these entities available in a different project. Some useful index files for common libraries
+(ex. BLAS/LAPACK) are available at https://github.com/hansec/autocomplete-fortran-ext.
+
+    {
+      "ext_index": ["blas_index.json"]
     }
 
 ### Settings

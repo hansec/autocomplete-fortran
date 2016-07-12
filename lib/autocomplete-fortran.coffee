@@ -35,6 +35,8 @@ module.exports =
     # Register command that rebuilds index
     @subscriptions.add atom.commands.add 'atom-workspace',
       'autocomplete-fortran:rebuild': => @rebuild()
+    @subscriptions.add atom.commands.add 'atom-workspace',
+      'autocomplete-fortran:saveIndex': => @saveIndex()
     @subscriptions.add atom.commands.add "atom-text-editor",
       'autocomplete-fortran:go-declaration': (e)=> @goDeclaration atom.workspace.getActiveTextEditor(),e
 
@@ -70,3 +72,6 @@ module.exports =
       atom.notifications?.addWarning("Could not find definition: '#{varWord}'", {
         dismissable: true
       })
+
+  saveIndex: () ->
+    @provider.saveIndex()

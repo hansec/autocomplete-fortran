@@ -109,6 +109,28 @@ class FortranProvider
           @modDirs = []
           for modDir in configOptions['mod_dirs']
             @modDirs.push(path.join(projDir, modDir))
+        if 'ext_index' of configOptions
+          for extIndex in configOptions['ext_index']
+            indexPath = path.join(projDir, extIndex)
+            try
+              fs.accessSync(indexPath, fs.R_OK)
+              fs.openSync(indexPath, 'r+')
+              result = fs.readFileSync(indexPath)
+              extIndex = JSON.parse(result)
+              objListing = extIndex['obj']
+              descListing = extIndex['descs']
+              for key of objListing
+                @projectObjList[key] = objListing[key]
+                obj = @projectObjList[key]
+                descInd = obj['desc']
+                descStr = descListing[descInd]
+                if descStr?
+                  descIndex = @descList.indexOf(descStr)
+                  if descIndex == -1
+                    @descList.push(descStr)
+                    obj['desc'] = @descList.length-1
+                  else
+                    obj['desc'] = descIndex
     for modDir in @modDirs
       try
         files = fs.readdirSync(modDir)
@@ -331,6 +353,52 @@ class FortranProvider
         suggestions = @addChildren(cursorScope, suggestions, prefixLower, [])
         return @buildCompletionList(suggestions,lineContext)
     return completions
+
+  saveIndex: () ->
+    # Build index on first run
+    if @firstRun
+      @rebuildIndex()
+      @firstRun = false
+    unless @checkIndex()
+      @notifyIndexPending('Save Index')
+      return
+    removalList = []
+    for key of @projectObjList
+      obj = @projectObjList[key]
+      type = obj['type']
+      if type == 2 or type == 3
+        memList = obj['mem']
+        if memList?
+          for member in memList
+            removalList.push(key+'::'+member.toLowerCase())
+        delete obj['mem']
+    for key in removalList
+      delete @projectObjList[key]
+    newDescList = []
+    newDescs = []
+    for key of @projectObjList
+      obj = @projectObjList[key]
+      if obj['type'] == 7
+        @resolveInterface(key)
+      @resolveIherited(key)
+      delete obj['fdef']
+      delete obj['file']
+      delete obj['fbound']
+      desInd = obj['desc']
+      descIndex = newDescList.indexOf(desInd)
+      if descIndex == -1
+        newDescList.push(desInd)
+        newDescs.push(@descList[desInd])
+        obj['desc'] = newDescList.length-1
+      else
+        obj['desc'] = descIndex
+    outObj = {'obj': @projectObjList, 'descs': newDescs}
+    projectDirs = atom.project.getPaths()
+    outputPath = path.join(projectDirs[0], 'ac_fortran_index.json')
+    fd = fs.openSync(outputPath, 'w+')
+    fs.writeSync(fd, JSON.stringify(outObj))
+    fs.closeSync(fd)
+    @rebuildIndex()
 
   goToDef: (word, editor, bufferPosition) ->
     # Build index on first run

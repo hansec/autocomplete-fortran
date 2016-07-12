@@ -9,7 +9,8 @@
     submenu: [
       label: 'Autocomplete FORTRAN'
       submenu: [
-        {label:'Rebuild Index', command:'autocomplete-fortran:rebuild'}
+        {label:'Rebuild index', command:'autocomplete-fortran:rebuild'},
+        {label:'Save external index file', command:'autocomplete-fortran:saveIndex'}
       ]
     ]
   }
