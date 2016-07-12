@@ -43,7 +43,7 @@ module.exports =
     @provider
 
   rebuild: ()->
-    console.log "Rebuild triggered"
+    #console.log "Rebuild triggered"
     if @provider?
       @provider.rebuildIndex()
 
@@ -52,7 +52,7 @@ module.exports =
     varWord = editor.getSelectedText()
     bufferRange = editor.getSelectedBufferRange()
     defPos = @provider.goToDef(varWord, editor, bufferRange.end)
-    console.log defPos
+    #console.log defPos
     if defPos?
       splitInfo = defPos.split(":")
       fileName = splitInfo[0]
