@@ -583,7 +583,7 @@ class fortran_file:
             return None
         name_str = self.current_scope.name
         if len(self.scope_stack) > 0:
-            for scope in self.scope_stack:
+            for scope in reversed(self.scope_stack):
                 name_str = scope.name + '::' + name_str
         return name_str
     def add_scope(self,new_scope, END_SCOPE_REGEX, hidden=False):
