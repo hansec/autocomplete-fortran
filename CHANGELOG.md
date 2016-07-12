@@ -1,3 +1,9 @@
+## 0.8.1
+
+### Fixes
+* Fix fully-qualified object name construction for deep nesting levels
+* Improve error handling for parser failures
+
 ## 0.8.0
 
 ### Improvements
