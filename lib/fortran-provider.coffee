@@ -302,7 +302,7 @@ class FortranProvider
       cursorScope = @getClassScope(fullLine, lineScopes)
       if cursorScope?
         suggestions = @addChildren(cursorScope, suggestions, prefixLower, [])
-        return @buildCompletionList(suggestions)
+        return @buildCompletionList(suggestions, lineContext)
       if prefix.length < @minPrefix and not activatedManually
         return completions
       for key in @globalObjInd when (@projectObjList[key]['name'].toLowerCase().startsWith(prefixLower))
@@ -322,12 +322,12 @@ class FortranProvider
       unless line.endsWith('%')
         return completions
       fullLine = @getFullLine(editor, bufferPosition)
+      lineContext = @getLineContext(fullLine)
       lineScopes = @getLineScopes(editor, bufferPosition)
       cursorScope = @getClassScope(fullLine, lineScopes)
       if cursorScope?
         suggestions = @addChildren(cursorScope, suggestions, prefixLower, [])
-        return @buildCompletionList(suggestions)
-      completions = @buildCompletionList(suggestions)
+        return @buildCompletionList(suggestions,lineContext)
     return completions
 
   goToDef: (word, editor, bufferPosition) ->
@@ -422,6 +422,9 @@ class FortranProvider
     useRegex = /^[ \t]*USE[ \t]/i
     subDefRegex = /^[ \t]*(PURE|ELEMENTAL|RECURSIVE)*[ \t]*(MODULE|PROGRAM|SUBROUTINE|FUNCTION)[ \t]/i
     typeDefRegex = /^[ \t]*(CLASS|TYPE)[ \t]*(IS)?[ \t]*\(/i
+    callRegex = /^[ \t]*CALL[ \t]+[a-z0-9_%]*$/i
+    if line.match(callRegex)?
+      return 4
     if line.match(useRegex)?
       return 1
     if line.match(useRegex)?
@@ -724,12 +727,19 @@ class FortranProvider
       return null
     return objKey.substring(0,finalSep)
 
-  buildCompletionList: (suggestions, contextFilter=null) ->
+  buildCompletionList: (suggestions, contextFilter=0) ->
+    subTestRegex = /^(TYP|CLA|PRO)/i
     completions = []
     for suggestion in suggestions
       compObj = @projectObjList[suggestion]
       if contextFilter == 3 and compObj['type'] != 4
         continue
+      if contextFilter == 4
+        if compObj['type'] == 3 or compObj['type'] == 4
+          continue
+        if compObj['type'] == 6
+          unless @descList[compObj['desc']].match(subTestRegex)?
+            continue
       if compObj['type'] == 7
         @resolveInterface(suggestion)
         repName = compObj['name']
