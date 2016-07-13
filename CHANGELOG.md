@@ -1,3 +1,8 @@
+## 0.8.2
+
+### Fixes
+* Fix bug with missing suggestions when uppercase fields are present in a user-defined type
+
 ## 0.8.1
 
 ### Fixes
