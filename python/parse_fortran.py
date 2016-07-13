@@ -354,7 +354,7 @@ class fortran_scope:
             scope_dict['args'] = arg_str
         if len(self.children) > 0:
             for child in self.children:
-                scope_dict['mem'].append(child.name)
+                scope_dict['mem'].append(child.name.lower())
         if len(self.use) > 0:
             scope_dict['use'] = []
             for use_stmt in self.use:
@@ -506,7 +506,7 @@ class fortran_int(fortran_scope):
     def write_scope(self):
         child_list = []
         for child in self.children:
-            child_list.append(child)
+            child_list.append(child.lower())
         scope_dict = {'name': self.name, 'type': 7, 'fbound': [self.sline, self.eline], 'mem': child_list}
         if self.vis == -1:
             scope_dict['vis'] = '-1'
