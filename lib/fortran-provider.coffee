@@ -423,8 +423,14 @@ class FortranProvider
     subDefRegex = /^[ \t]*(PURE|ELEMENTAL|RECURSIVE)*[ \t]*(MODULE|PROGRAM|SUBROUTINE|FUNCTION)[ \t]/i
     typeDefRegex = /^[ \t]*(CLASS|TYPE)[ \t]*(IS)?[ \t]*\(/i
     callRegex = /^[ \t]*CALL[ \t]+[a-z0-9_%]*$/i
+    deallocRegex = /^[ \t]*DEALLOCATE[ \t]*\(/i
+    nullifyRegex = /^[ \t]*NULLIFY[ \t]*\(/i
     if line.match(callRegex)?
       return 4
+    if line.match(deallocRegex)?
+      return 5
+    if line.match(nullifyRegex)?
+      return 6
     if line.match(useRegex)?
       return 1
     if line.match(useRegex)?
@@ -729,6 +735,7 @@ class FortranProvider
 
   buildCompletionList: (suggestions, contextFilter=0) ->
     subTestRegex = /^(TYP|CLA|PRO)/i
+    typRegex = /^(TYP|CLA)/i
     completions = []
     for suggestion in suggestions
       compObj = @projectObjList[suggestion]
@@ -740,6 +747,20 @@ class FortranProvider
         if compObj['type'] == 6
           unless @descList[compObj['desc']].match(subTestRegex)?
             continue
+      if contextFilter == 5 or contextFilter == 6
+        if compObj['type'] == 6
+          modList = compObj['mods']
+          isPoint = false
+          isAlloc = false
+          if modList?
+            isPoint = (modList.indexOf(1) > -1)
+            if contextFilter == 5
+              isAlloc = (modList.indexOf(2) > -1)
+          isType = @descList[compObj['desc']].match(typRegex)?
+          unless (isPoint or isAlloc or isType)
+            continue
+        else
+          continue
       if compObj['type'] == 7
         @resolveInterface(suggestion)
         repName = compObj['name']
