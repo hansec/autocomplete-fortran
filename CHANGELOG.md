@@ -1,3 +1,11 @@
+## 0.9.0
+
+### Improvements
+* Add support for generating and using external index files
+* Use snippet package for subroutine/function arguments in suggestions
+* Add context filtering for CALL statements
+* Add context filtering for DEALLOCATE/NULLIFY statements
+
 ## 0.8.2
 
 ### Fixes

@@ -23,6 +23,7 @@ This package has been tested and *should* work on :apple: Mac OSX, :penguin: Lin
  * Provides argument list for subroutine and function calls (optional arguments are indicated)
  * Indicates return type for function calls
  * "Go To Declaration" support for FORTRAN objects (including fields in user-defined types)
+ * Support for generating and using external index files (completion for libraries outside project ex. MPI, BLAS/LAPACK, etc.)
 
 ## Usage
 Suggestions should be presented automatically while typing. At anytime you can force rebuilding of the index through the menu `Packages->Autocomplete FOTRAN->Rebuild index`.
@@ -72,7 +73,6 @@ Many additional settings, such as the selection keys (`TAB`/`ENTER`), are govern
 ## TODOs
  * Handle explicit PASS statement for type bound procedures
  * Allow fuzzy completion suggestions
- * Add support for generating and using external index files (completions for libraries outside project ex. MPI,BLAS/LAPACK)
 
 --------
 
