@@ -83,6 +83,18 @@ class FortranProvider
     @indexReady = true
     return true
 
+  addInfo: (info, detail=null) ->
+    if detail?
+      atom.notifications?.addInfo("ac-fortran: #{info}", {detail: detail})
+    else
+      atom.notifications?.addInfo("ac-fortran: #{info}")
+
+  addError: (info, detail=null) ->
+    if detail?
+      atom.notifications?.addError("ac-fortran: #{info}", {detail: detail})
+    else
+      atom.notifications?.addError("ac-fortran: #{info}")
+
   notifyIndexPending: (operation) ->
     atom.notifications?.addWarning("Could not complete operation: #{operation}", {
       detail: 'Indexing pending',
@@ -95,13 +107,18 @@ class FortranProvider
     projectDirs = atom.project.getPaths()
     @modDirs = projectDirs
     @exclPaths = []
+    extPaths = []
     for projDir in projectDirs
       settingPath = path.join(projDir, '.ac_fortran')
       try
         fs.accessSync(settingPath, fs.R_OK)
         fs.openSync(settingPath, 'r+')
         result = fs.readFileSync(settingPath)
-        configOptions = JSON.parse(result)
+        try
+          configOptions = JSON.parse(result)
+        catch
+          @addError("Error reading project settings", "path #{settingPath}")
+          continue
         if 'excl_paths' of configOptions
           for exclPath in configOptions['excl_paths']
             @exclPaths.push(path.join(projDir, exclPath))
@@ -110,8 +127,8 @@ class FortranProvider
           for modDir in configOptions['mod_dirs']
             @modDirs.push(path.join(projDir, modDir))
         if 'ext_index' of configOptions
-          for extIndex in configOptions['ext_index']
-            indexPath = path.join(projDir, extIndex)
+          for relPath in configOptions['ext_index']
+            indexPath = path.join(projDir, relPath)
             try
               fs.accessSync(indexPath, fs.R_OK)
               fs.openSync(indexPath, 'r+')
@@ -131,6 +148,11 @@ class FortranProvider
                     obj['desc'] = @descList.length-1
                   else
                     obj['desc'] = descIndex
+              extPaths.push("#{relPath}")
+            catch
+              @addError("Cannot read external index file", "path #{relPath}")
+    if extPaths.length > 0
+      @addInfo("Added external index files", extPaths.join('\n'))
     for modDir in @modDirs
       try
         files = fs.readdirSync(modDir)
