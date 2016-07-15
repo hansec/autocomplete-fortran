@@ -20,6 +20,12 @@ module.exports =
       order: 3
       title: 'Preserve completion case'
       description: "Preserve case of suggestions from their defintion when inserting completions. Otherwise all suggestions will be lowercase."
+    useSnippets:
+      type: 'boolean'
+      default: true
+      order: 3
+      title: 'Use argument snippets'
+      description: "Use snippets for function/subroutine arguments. See: https://github.com/atom/snippets for more information."
   provider: null
 
   activate: ->

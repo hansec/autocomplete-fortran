@@ -16,6 +16,7 @@ class FortranProvider
   parserPath: ''
   minPrefix: 2
   preserveCase: true
+  useSnippets: true
   firstRun: true
   indexReady: false
   globalUpToDate: true
@@ -37,6 +38,7 @@ class FortranProvider
     @parserPath = path.join(__dirname, "..", "python", "parse_fortran.py")
     @minPrefix = atom.config.get('autocomplete-fortran.minPrefix')
     @preserveCase = atom.config.get('autocomplete-fortran.preserveCase')
+    @useSnippets = atom.config.get('autocomplete-fortran.useSnippets')
     @saveWatchers = new CompositeDisposable
     @workspaceWatcher = atom.workspace.observeTextEditors((editor) => @setupEditors(editor))
 
@@ -797,12 +799,28 @@ class FortranProvider
       name = name.toLowerCase()
     if 'args' of suggestion
       argStr = suggestion['args']
-      if stripArg
-        i1 = argStr.indexOf(',')
-        if i1 > -1
-          argStr = argStr.substring(i1+1).trim()
-        else
-          argStr = ''
+      if @useSnippets
+        argList = argStr.split(',')
+        argListFinal = []
+        i = 0
+        for arg in argList
+          i += 1
+          if stripArg and i == 1
+            continue
+          i1 = arg.indexOf("=")
+          if i1 == -1
+            argListFinal.push("${#{i}:#{arg}}")
+          else
+            argName = arg.substring(0,i1)
+            argListFinal.push("#{argName}=${#{i}:#{argName}}")
+        argStr = argListFinal.join(',')
+      else
+        if stripArg
+          i1 = argStr.indexOf(',')
+          if i1 > -1
+            argStr = argStr.substring(i1+1).trim()
+          else
+            argStr = ''
       unless @preserveCase
         argStr = argStr.toLowerCase()
       compObj.snippet = name + "(" + argStr + ")"
