@@ -621,7 +621,11 @@ class FortranProvider
             varKey = containingScope + "::" + varNameLower
             if @projectObjList[varKey]['type'] == 6
               varDefName = @getVarType(varKey)
-              containingScope = @findInScope(containingScope, varDefName)
+              iLast = containingScope.lastIndexOf("::")
+              typeScope = containingScope
+              if iLast > -1
+                typeScope = containingScope.substring(0,iLast)
+              containingScope = @findInScope(typeScope, varDefName)
               searchScope = containingScope + '::' + varDefName
           else
             return null
@@ -633,7 +637,11 @@ class FortranProvider
               varKey = containingScope + "::" + varNameLower
               if @projectObjList[varKey]['type'] == 6
                 varDefName = @getVarType(varKey)
-                containingScope = @findInScope(containingScope, varDefName)
+                iLast = containingScope.lastIndexOf("::")
+                typeScope = containingScope
+                if iLast > -1
+                  typeScope = containingScope.substring(0,iLast)
+                containingScope = @findInScope(typeScope, varDefName)
                 searchScope = containingScope + '::' + varDefName
               break
     return searchScope # Unknown enable everything!!!!
