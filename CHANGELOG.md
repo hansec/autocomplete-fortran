@@ -1,3 +1,8 @@
+## 0.9.1
+
+### Fixes
+* Fix bug with suggestions when type name and member name are the same- fixes issue [#4](https://github.com/hansec/autocomplete-fortran/issues/4)
+
 ## 0.9.0
 
 ### Improvements
