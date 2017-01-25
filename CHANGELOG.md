@@ -1,3 +1,8 @@
+## 0.9.2
+
+### Fixes
+* Fix bug with print statements in Python 3- fixes issue [#5](https://github.com/hansec/autocomplete-fortran/issues/5)
+
 ## 0.9.1
 
 ### Fixes
