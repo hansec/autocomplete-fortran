@@ -13,6 +13,7 @@ class FortranProvider
   saveWatchers: undefined
 
   pythonPath: ''
+  pythonValid: -1
   parserPath: ''
   minPrefix: 2
   preserveCase: true
@@ -41,6 +42,7 @@ class FortranProvider
     @useSnippets = atom.config.get('autocomplete-fortran.useSnippets')
     @saveWatchers = new CompositeDisposable
     @workspaceWatcher = atom.workspace.observeTextEditors((editor) => @setupEditors(editor))
+    @checkPythonPath()
 
   destructor: () ->
     if @workspaceWatcher?
@@ -48,10 +50,45 @@ class FortranProvider
     if @saveWatchers?
       @saveWatchers.dispose()
 
+  checkPythonPath: () ->
+    command = @pythonPath
+    stdOutput = ""
+    errOutput = ""
+    args = ["-V"]
+    stdout = (output) => stdOutput = output
+    stderr = (output) => errOutput = output
+    exit = (code) =>
+      if @pythonValid == -1
+        unless code == 0
+          @pythonValid = 0
+        if errOutput.indexOf('is not recognized as an internal or external') > -1
+          @pythonValid = 0
+      if @pythonValid == -1
+        @pythonValid = 1
+      else
+        console.log '[ac-fortran] Python check failed'
+        console.log '[ac-fortran]',errOutput
+    bufferedProcess = new BufferedProcess({command, args, stdout, stderr, exit})
+    bufferedProcess.onWillThrowError ({error, handle}) =>
+      if error.code is 'ENOENT' and error.syscall.indexOf('spawn') is 0
+        @pythonValid = 0
+        console.log '[ac-fortran] Python check failed'
+        console.log '[ac-fortran]',error
+        handle()
+      else
+        throw error
+
   setupEditors: (editor) ->
-    @saveWatchers.add editor.onDidSave((event) => @fileUpdateSave(event))
+    scopeDesc = editor.getRootScopeDescriptor().getScopesArray()
+    if scopeDesc[0]?.indexOf('fortran') > -1
+      @saveWatchers.add editor.onDidSave((event) => @fileUpdateSave(event))
 
   fileUpdateSave: (event) ->
+    if @pythonValid < 1
+      if @pythonValid == 0
+        @addError("Python path error", "Disabling FORTRAN autocompletion")
+        @pythonValid = -2
+      return
     fileRef = @modFiles.indexOf(event.path)
     if fileRef > -1
       @fileUpdate(event.path, true)
@@ -309,6 +346,11 @@ class FortranProvider
         @globalObjInd.push(key)
 
   getSuggestions: ({editor, bufferPosition, prefix, activatedManually}) ->
+    if @pythonValid < 1
+      if @pythonValid == 0
+        @addError("Python path error", "Disabling FORTRAN autocompletion")
+        @pythonValid = -2
+      return
     unless @exclPaths.indexOf(editor.getPath()) == -1
       return []
     # Build index on first run
