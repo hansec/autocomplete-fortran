@@ -1,3 +1,8 @@
+## 0.9.3
+
+### Improvements
+* Catch errors related to incomplete or invalid Python paths
+
 ## 0.9.2
 
 ### Fixes
