@@ -685,7 +685,7 @@ def process_file(filename,close_open_scopes):
             next_line = f.readline()
             cont_match = CONT_REGEX.match(next_line)
             while( cont_match is not None ):
-                line = line[:-1] + next_line[6:-1].strip()
+                line = line.rstrip() + next_line[6:].strip()
                 next_line_num += 1
                 next_line = f.readline()
                 cont_match = CONT_REGEX.match(next_line)
@@ -714,6 +714,7 @@ def process_file(filename,close_open_scopes):
                 if iComm < 0:
                     iComm = iAmper + 1
             next_line = None
+        line = line.rstrip()
         # Test for scope end
         if file_obj.END_REGEX is not None:
             match = file_obj.END_REGEX.match(line)
