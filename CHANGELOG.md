@@ -1,3 +1,8 @@
+## 0.9.4
+
+### Fixes
+* Fix bug with Windows line endings in fixed format files- fixes issue [#8](https://github.com/hansec/autocomplete-fortran/issues/8)
+
 ## 0.9.3
 
 ### Improvements
