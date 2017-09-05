@@ -1,3 +1,8 @@
+## 0.9.5
+
+### Fixes
+* Fix bug with colon separators in USE statements- fixes issue [#10](https://github.com/hansec/autocomplete-fortran/issues/10)
+
 ## 0.9.4
 
 ### Fixes
