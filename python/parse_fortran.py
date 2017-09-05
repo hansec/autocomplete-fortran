@@ -26,7 +26,7 @@ parser.add_option("--files", dest="files", default=None,
 debug = options.debug
 fixed_format = options.fixed
 #
-USE_REGEX = re.compile(r'[ \t]*USE[ \t]*([a-z0-9_]*)', re.I)
+USE_REGEX = re.compile(r'[ \t]*USE[ \t:]*([a-z0-9_]*)', re.I)
 SUB_REGEX = re.compile(r'[ \t]*(PURE|ELEMENTAL|RECURSIVE)*[ \t]*(SUBROUTINE)', re.I)
 END_SUB_REGEX = re.compile(r'[ \t]*END[ \t]*SUBROUTINE', re.I)
 FUN_REGEX = re.compile(r'[ \t]*(PURE|ELEMENTAL|RECURSIVE)*[ \t]*(FUNCTION)', re.I)
