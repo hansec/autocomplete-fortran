@@ -1,3 +1,7 @@
+## 0.9.6
+
+* Added package deprecation warning to startup
+
 ## 0.9.5
 
 ### Fixes
