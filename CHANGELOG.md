@@ -80,7 +80,7 @@
 * Trigger reparsing when a buffer is saved
 * Improve debug output for diagnosing parser failures
 
-## Fixes
+### Fixes
 * Fix issue [#1](https://github.com/hansec/autocomplete-fortran/issues/1)- parsing error with "non-module" interface procedures
 
 ## 0.4.0
@@ -92,7 +92,7 @@
 * Reduce parsing frequency by preventing local buffer AST updates until edits on a line have completed
 * Refactor FORTRAN parser to improve accuracy/robustness
 
-## Fixes
+### Fixes
 * Fix parsing errors when adding a scope to the current buffer (automatically close scopes when parsing buffer)
 * Fix bug in parsing when generic "END" statement was followed by a comment
 * Fix bug in "GoTo Declaration" when declaration is in current buffer which is not included in the parsing directories
