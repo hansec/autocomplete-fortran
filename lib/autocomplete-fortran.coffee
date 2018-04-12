@@ -26,6 +26,12 @@ module.exports =
       order: 3
       title: 'Use argument snippets'
       description: "Use snippets for function/subroutine arguments. See: https://github.com/atom/snippets for more information."
+    displayDepWarning:
+      type: 'boolean'
+      default: true
+      order: 4
+      title: 'Display deprecation warning'
+      description: "This package has been replaced by the [ide-fortran](https://atom.io/packages/ide-fortran) package and is now deprecated. Use this option to disable warnings about this."
   provider: null
 
   activate: ->
@@ -39,6 +45,23 @@ module.exports =
       'autocomplete-fortran:saveIndex': => @saveIndex()
     @subscriptions.add atom.commands.add "atom-text-editor",
       'autocomplete-fortran:go-declaration': (e)=> @goDeclaration atom.workspace.getActiveTextEditor(),e
+    # Warn about deprecation
+    if atom.config.get('autocomplete-fortran.displayDepWarning')
+      atom.notifications.addWarning(
+        "The `autocomplete-fortran` package is now deprecated.",
+        {
+          dismissable: true,
+          buttons: [
+            {
+              text: "Disable warning",
+              onDidClick: () =>
+                atom.workspace.open("atom://config/packages/autocomplete-fortran")
+            }
+          ],
+          description:
+            "This package has been replaced by the [ide-fortran](https://atom.io/packages/ide-fortran) package. You may disable this warning in settings."
+        }
+      )
 
   deactivate: ->
     @subscriptions.dispose()
