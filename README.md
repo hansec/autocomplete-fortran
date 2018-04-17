@@ -1,5 +1,11 @@
 # autocomplete-fortran package [![Package version](https://img.shields.io/apm/v/autocomplete-fortran.svg?style=flat-square)](https://atom.io/packages/autocomplete-fortran) [![Plugin installs](https://img.shields.io/apm/dm/autocomplete-fortran.svg?style=flat-square)](https://atom.io/packages/autocomplete-fortran)
 
+## Warning: this package is now deprecated
+
+This package is no longer being updated. It has been replaced by the [ide-fortran](https://atom.io/packages/ide-fortran) package, which has improved functionality via common [IDE support in Atom](https://ide.atom.io/).
+
+## Description
+
 This package provides autocomplete suggestions and "Go To Declaration" support for FORTRAN code using [autocomplete-plus](https://atom.io/packages/autocomplete-plus).
 
 *Note:* This package is experimental. If you find any bugs or if there are any missing features you would like please open an [issue](https://github.com/hansec/autocomplete-fortran/issues).
