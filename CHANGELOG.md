@@ -1,3 +1,9 @@
+## 0.9.7
+
+**Final release, package is now deprecated.**
+
+* Added deprecation warning to README
+
 ## 0.9.6
 
 * Added package deprecation warning to startup
